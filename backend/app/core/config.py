@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     # Voice AI
     elevenlabs_api_key: Optional[str] = ""
     
+    # Groq (for LLaVA)
+    groq_api_key: Optional[str] = ""
+    
     @property
     def cors_origins_list(self) -> List[str]:
         return [origin.strip() for origin in self.cors_origins.split(",")]

@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 from app.core.config import get_settings
-from app.routers import analytics, platforms, ai, reports, voice_coach
+from app.routers import analytics, platforms, ai, reports, voice_coach, hooks
 from app.routers.oauth import router as oauth_router
 
 
@@ -41,6 +41,7 @@ app.include_router(platforms.router, prefix="/api/platforms", tags=["Platforms"]
 app.include_router(ai.router, prefix="/api/ai", tags=["AI"])
 app.include_router(reports.router, prefix="/api/reports", tags=["Reports"])
 app.include_router(voice_coach.router, prefix="/api/voice-coach", tags=["Voice Coach"])
+app.include_router(hooks.router)  # Hook detector routes at /api/hooks/*
 app.include_router(oauth_router)  # OAuth routes at /auth/*
 
 

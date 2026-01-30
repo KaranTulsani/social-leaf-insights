@@ -7,7 +7,8 @@ import {
   Users,
   Settings,
   LogOut,
-  Mic
+  Mic,
+  Zap
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
@@ -18,6 +19,7 @@ const sidebarLinks = [
   { icon: TrendingUp, label: "Performance", href: "/performance" },
   { icon: Users, label: "Audience", href: "/audience" },
   { icon: Mic, label: "Voice Coach", href: "/voice-coach" },
+  { icon: Zap, label: "Hook Detector", href: "/hook-detector" },
   { icon: Settings, label: "Settings", href: "/settings" },
 ];
 
@@ -70,8 +72,8 @@ export function Sidebar() {
                 <Link
                   to={link.href}
                   className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${isActive
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
                     }`}
                 >
                   <link.icon className="h-5 w-5" />

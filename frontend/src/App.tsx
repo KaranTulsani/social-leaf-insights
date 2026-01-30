@@ -15,6 +15,7 @@ import Performance from "./pages/Performance";
 import Audience from "./pages/Audience";
 import Settings from "./pages/Settings";
 import VoiceCoach from "./pages/VoiceCoach";
+import HookDetector from "./pages/HookDetector";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 
@@ -78,6 +79,14 @@ const App = () => (
             element={
               <ProtectedRoute>
                 <VoiceCoach />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/hook-detector"
+            element={
+              <ProtectedRoute>
+                <HookDetector />
               </ProtectedRoute>
             }
           />
