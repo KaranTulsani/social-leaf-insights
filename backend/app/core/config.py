@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     instagram_client_id: Optional[str] = ""
     instagram_client_secret: Optional[str] = ""
     
+    # Voice AI
+    elevenlabs_api_key: Optional[str] = ""
+    
     @property
     def cors_origins_list(self) -> List[str]:
         return [origin.strip() for origin in self.cors_origins.split(",")]

@@ -3,12 +3,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 from app.core.config import get_settings
-from app.routers import analytics, platforms, ai, reports
+from app.routers import analytics, platforms, ai, reports, voice_coach
 from app.routers.oauth import router as oauth_router
 
 
 settings = get_settings()
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -41,6 +40,7 @@ app.include_router(analytics.router, prefix="/api/analytics", tags=["Analytics"]
 app.include_router(platforms.router, prefix="/api/platforms", tags=["Platforms"])
 app.include_router(ai.router, prefix="/api/ai", tags=["AI"])
 app.include_router(reports.router, prefix="/api/reports", tags=["Reports"])
+app.include_router(voice_coach.router, prefix="/api/voice-coach", tags=["Voice Coach"])
 app.include_router(oauth_router)  # OAuth routes at /auth/*
 
 
@@ -54,6 +54,31 @@ async def root():
 async def health_check():
     """Health check endpoint."""
     return {"status": "healthy", "service": "social-leaf-api"}
+
+
+# ================== YOUTUBE PUBLIC API (API Key Only) ==================
+
+@app.get("/api/youtube/featured")
+async def get_youtube_featured():
+    """Get featured YouTube channels with real data (T-Series, MrBeast, etc.)."""
+    from app.services.youtube import YouTubeService
+    service = YouTubeService()
+    return await service.get_featured_channels()
+
+
+@app.get("/api/youtube/channel/{channel_id}")
+async def get_youtube_channel(channel_id: str):
+    """Get stats for a specific YouTube channel by ID."""
+    from app.services.youtube import YouTubeService
+    service = YouTubeService()
+    
+    channel = await service.get_public_channel_stats(channel_id)
+    videos = await service.get_channel_videos_with_stats(channel_id, max_results=6)
+    
+    return {
+        "channel": channel,
+        "recent_videos": videos
+    }
 
 
 # ================== REAL PLATFORM DATA (OAuth Required) ==================

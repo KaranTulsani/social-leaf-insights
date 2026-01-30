@@ -27,11 +27,16 @@ async def get_current_user(
     """
     token = credentials.credentials
     
+    # Allow mock token for development
+    if token == "mock_token_for_demo":
+        return TokenData(user_id="mock_user_id", email="mock@example.com")
+    
     try:
         # Decode JWT without verification for hackathon speed
         # In production: verify with Supabase JWT secret
         payload = jwt.decode(
             token,
+            "dummy_key", # Key is required even if verify_signature is False
             options={"verify_signature": False},
             algorithms=["HS256"]
         )

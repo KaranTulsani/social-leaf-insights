@@ -17,9 +17,153 @@ YOUTUBE_API_BASE = "https://www.googleapis.com/youtube/v3"
 class YouTubeService:
     """Service for interacting with YouTube Data API."""
     
+    # Popular channel IDs for featured content
+    FEATURED_CHANNELS = {
+        "tseries": "UCq-Fj5jknLsUf-MWSy4_brA",  # T-Series
+        "mrbeast": "UCX6OQ3DkcsbYNE6H8uQQuVA",  # MrBeast
+        "pewdiepie": "UC-lHJZR3Gqxm24_Vd_AJ5Yw",  # PewDiePie
+        "cocomelon": "UCbCmjCuTUZos6Inko4u57UQ",  # Cocomelon
+    }
+    
     def __init__(self, access_token: Optional[str] = None):
         self.access_token = access_token
         self.api_key = settings.youtube_api_key
+    
+    async def get_public_channel_stats(self, channel_id: str) -> Dict[str, Any]:
+        """Get public statistics for any YouTube channel by ID."""
+        if not self.api_key:
+            return self._mock_channel_info()
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{YOUTUBE_API_BASE}/channels",
+                params={
+                    "part": "snippet,statistics,brandingSettings",
+                    "id": channel_id,
+                    "key": self.api_key
+                }
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("items"):
+                    channel = data["items"][0]
+                    snippet = channel.get("snippet", {})
+                    stats = channel.get("statistics", {})
+                    branding = channel.get("brandingSettings", {}).get("channel", {})
+                    
+                    return {
+                        "id": channel.get("id"),
+                        "title": snippet.get("title"),
+                        "description": snippet.get("description", "")[:200],
+                        "customUrl": snippet.get("customUrl", ""),
+                        "thumbnail": snippet.get("thumbnails", {}).get("high", {}).get("url"),
+                        "banner": branding.get("bannerExternalUrl"),
+                        "country": snippet.get("country"),
+                        "publishedAt": snippet.get("publishedAt"),
+                        "statistics": {
+                            "subscribers": int(stats.get("subscriberCount", 0)),
+                            "views": int(stats.get("viewCount", 0)),
+                            "videos": int(stats.get("videoCount", 0)),
+                            "hiddenSubscriberCount": stats.get("hiddenSubscriberCount", False),
+                        }
+                    }
+            return self._mock_channel_info()
+    
+    async def get_channel_videos_with_stats(self, channel_id: str, max_results: int = 6) -> List[Dict[str, Any]]:
+        """Get recent videos from a channel with full statistics."""
+        if not self.api_key:
+            return self._mock_videos(max_results)
+        
+        async with httpx.AsyncClient() as client:
+            # First get channel's uploads playlist
+            channel_response = await client.get(
+                f"{YOUTUBE_API_BASE}/channels",
+                params={
+                    "part": "contentDetails",
+                    "id": channel_id,
+                    "key": self.api_key
+                }
+            )
+            
+            if channel_response.status_code != 200:
+                return self._mock_videos(max_results)
+            
+            channel_data = channel_response.json()
+            if not channel_data.get("items"):
+                return self._mock_videos(max_results)
+            
+            uploads_playlist = channel_data["items"][0]["contentDetails"]["relatedPlaylists"]["uploads"]
+            
+            # Get video IDs from uploads playlist
+            playlist_response = await client.get(
+                f"{YOUTUBE_API_BASE}/playlistItems",
+                params={
+                    "part": "snippet,contentDetails",
+                    "playlistId": uploads_playlist,
+                    "maxResults": max_results,
+                    "key": self.api_key
+                }
+            )
+            
+            if playlist_response.status_code != 200:
+                return self._mock_videos(max_results)
+            
+            playlist_data = playlist_response.json()
+            video_ids = [item["contentDetails"]["videoId"] for item in playlist_data.get("items", [])]
+            
+            if not video_ids:
+                return []
+            
+            # Get full video statistics
+            videos_response = await client.get(
+                f"{YOUTUBE_API_BASE}/videos",
+                params={
+                    "part": "snippet,statistics,contentDetails",
+                    "id": ",".join(video_ids),
+                    "key": self.api_key
+                }
+            )
+            
+            if videos_response.status_code != 200:
+                return self._mock_videos(max_results)
+            
+            videos_data = videos_response.json()
+            videos = []
+            
+            for video in videos_data.get("items", []):
+                snippet = video.get("snippet", {})
+                stats = video.get("statistics", {})
+                content = video.get("contentDetails", {})
+                
+                videos.append({
+                    "id": video.get("id"),
+                    "title": snippet.get("title"),
+                    "description": snippet.get("description", "")[:150],
+                    "thumbnail": snippet.get("thumbnails", {}).get("high", {}).get("url"),
+                    "publishedAt": snippet.get("publishedAt"),
+                    "duration": content.get("duration"),
+                    "statistics": {
+                        "views": int(stats.get("viewCount", 0)),
+                        "likes": int(stats.get("likeCount", 0)),
+                        "comments": int(stats.get("commentCount", 0)),
+                    }
+                })
+            
+            return videos
+    
+    async def get_featured_channels(self) -> List[Dict[str, Any]]:
+        """Get stats for all featured channels (T-Series, MrBeast, etc.)."""
+        channels = []
+        for name, channel_id in self.FEATURED_CHANNELS.items():
+            stats = await self.get_public_channel_stats(channel_id)
+            videos = await self.get_channel_videos_with_stats(channel_id, max_results=3)
+            channels.append({
+                "key": name,
+                "channel": stats,
+                "recent_videos": videos
+            })
+        return channels
     
     async def get_channel_info(self, channel_id: str) -> Dict[str, Any]:
         """Get channel information."""

@@ -1,0 +1,90 @@
+API Key present: True
+Attempting to list models...
+Found model: models/gemini-2.5-flash
+Found model: models/gemini-2.5-pro
+Found model: models/gemini-2.0-flash
+Found model: models/gemini-2.0-flash-001
+Found model: models/gemini-2.0-flash-exp-image-generation
+Found model: models/gemini-2.0-flash-lite-001
+Found model: models/gemini-2.0-flash-lite
+Found model: models/gemini-exp-1206
+Found model: models/gemini-2.5-flash-preview-tts
+Found model: models/gemini-2.5-pro-preview-tts
+Found model: models/gemma-3-1b-it
+Found model: models/gemma-3-4b-it
+Found model: models/gemma-3-12b-it
+Found model: models/gemma-3-27b-it
+Found model: models/gemma-3n-e4b-it
+Found model: models/gemma-3n-e2b-it
+Found model: models/gemini-flash-latest
+Found model: models/gemini-flash-lite-latest
+Found model: models/gemini-pro-latest
+Found model: models/gemini-2.5-flash-lite
+Found model: models/gemini-2.5-flash-image
+Found model: models/gemini-2.5-flash-preview-09-2025
+Found model: models/gemini-2.5-flash-lite-preview-09-2025
+Found model: models/gemini-3-pro-preview
+Found model: models/gemini-3-flash-preview
+Found model: models/gemini-3-pro-image-preview
+Found model: models/nano-banana-pro-preview
+Found model: models/gemini-robotics-er-1.5-preview
+Found model: models/gemini-2.5-computer-use-preview-10-2025
+Found model: models/deep-research-pro-preview-12-2025
+Found model: models/embedding-001
+Found model: models/text-embedding-004
+Found model: models/gemini-embedding-001
+Found model: models/aqa
+Found model: models/imagen-4.0-generate-preview-06-06
+Found model: models/imagen-4.0-ultra-generate-preview-06-06
+Found model: models/imagen-4.0-generate-001
+Found model: models/imagen-4.0-ultra-generate-001
+Found model: models/imagen-4.0-fast-generate-001
+Found model: models/veo-2.0-generate-001
+Found model: models/veo-3.0-generate-001
+Found model: models/veo-3.0-fast-generate-001
+Found model: models/veo-3.1-generate-preview
+Found model: models/veo-3.1-fast-generate-preview
+Found model: models/gemini-2.5-flash-native-audio-latest
+Found model: models/gemini-2.5-flash-native-audio-preview-09-2025
+Found model: models/gemini-2.5-flash-native-audio-preview-12-2025
+
+Attempting generation with 'gemini-1.5-flash'...
+
+ERROR OCCURRED:
+Traceback (most recent call last):
+  File "E:\Social Leaf\backend\debug_gemini_file.py", line 25, in <module>
+    response = model.generate_content("Test")
+  File "C:\Python313\Lib\site-packages\google\generativeai\generative_models.py", line 331, in generate_content
+    response = self._client.generate_content(
+        request,
+        **request_options,
+    )
+  File "C:\Python313\Lib\site-packages\google\ai\generativelanguage_v1beta\services\generative_service\client.py", line 835, in generate_content
+    response = rpc(
+        request,
+    ...<2 lines>...
+        metadata=metadata,
+    )
+  File "C:\Python313\Lib\site-packages\google\api_core\gapic_v1\method.py", line 131, in __call__
+    return wrapped_func(*args, **kwargs)
+  File "C:\Python313\Lib\site-packages\google\api_core\retry\retry_unary.py", line 294, in retry_wrapped_func
+    return retry_target(
+        target,
+    ...<3 lines>...
+        on_error=on_error,
+    )
+  File "C:\Python313\Lib\site-packages\google\api_core\retry\retry_unary.py", line 156, in retry_target
+    next_sleep = _retry_error_helper(
+        exc,
+    ...<6 lines>...
+        timeout,
+    )
+  File "C:\Python313\Lib\site-packages\google\api_core\retry\retry_base.py", line 214, in _retry_error_helper
+    raise final_exc from source_exc
+  File "C:\Python313\Lib\site-packages\google\api_core\retry\retry_unary.py", line 147, in retry_target
+    result = target()
+  File "C:\Python313\Lib\site-packages\google\api_core\timeout.py", line 130, in func_with_timeout
+    return func(*args, **kwargs)
+  File "C:\Python313\Lib\site-packages\google\api_core\grpc_helpers.py", line 77, in error_remapped_callable
+    raise exceptions.from_grpc_error(exc) from exc
+google.api_core.exceptions.NotFound: 404 models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.
