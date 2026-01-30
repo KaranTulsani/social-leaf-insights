@@ -1,7 +1,7 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import jwt, JWTError
-from typing import Optional
+from typing import Optional, Dict, Any
 from pydantic import BaseModel
 from .config import get_settings
 
@@ -15,15 +15,22 @@ class TokenData(BaseModel):
     email: Optional[str] = None
 
 
+class UserWithProfile(BaseModel):
+    """User data with profile information."""
+    user_id: str
+    email: Optional[str] = None
+    name: Optional[str] = None
+    plan: Optional[str] = None
+    plan_status: Optional[str] = None
+    role: str = "user"
+
+
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ) -> TokenData:
     """
     Validate JWT token from Supabase Auth.
-    
-    Supabase JWTs are signed with the JWT secret from project settings.
-    For hackathon, we'll decode without verification (trust Supabase).
-    In production, verify with SUPABASE_JWT_SECRET.
+    Returns basic token data (user_id, email).
     """
     token = credentials.credentials
     
@@ -32,14 +39,27 @@ async def get_current_user(
         return TokenData(user_id="mock_user_id", email="mock@example.com")
     
     try:
-        # Decode JWT without verification for hackathon speed
-        # In production: verify with Supabase JWT secret
-        payload = jwt.decode(
-            token,
-            "dummy_key", # Key is required even if verify_signature is False
-            options={"verify_signature": False},
-            algorithms=["HS256"]
-        )
+        # Decode JWT - for dev, decode without signature verification
+        # In production, set SUPABASE_JWT_SECRET for proper verification
+        if settings.supabase_jwt_secret:
+            payload = jwt.decode(
+                token,
+                settings.supabase_jwt_secret,
+                algorithms=["HS256"],
+                options={"verify_aud": False}  # Supabase uses various audiences
+            )
+        else:
+            # Development mode: decode without signature verification
+            payload = jwt.decode(
+                token,
+                "",  # Key required but not used when verify_signature is False
+                algorithms=["HS256"],
+                options={
+                    "verify_signature": False,
+                    "verify_aud": False,
+                    "verify_exp": False  # Also skip expiration for dev
+                },
+            )
         
         user_id: str = payload.get("sub")
         email: str = payload.get("email")
@@ -54,8 +74,39 @@ async def get_current_user(
         return TokenData(user_id=user_id, email=email)
         
     except JWTError as e:
+        print(f"JWT Error: {e}")  # Debug logging
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Invalid token: {str(e)}",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+
+async def get_current_user_with_profile(
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+) -> Dict[str, Any]:
+    """
+    Validate JWT and fetch user profile from database.
+    Returns full profile with plan and role information.
+    
+    Use this for endpoints that need plan-based access control.
+    """
+    from app.services.user_service import user_service
+    
+    token_data = await get_current_user(credentials)
+    
+    # Fetch profile from database
+    profile = await user_service.get_profile(token_data.user_id)
+    
+    if not profile:
+        # Profile doesn't exist yet (first login)
+        profile = {
+            "id": token_data.user_id,
+            "email": token_data.email,
+            "name": None,
+            "plan": None,
+            "plan_status": None,
+            "role": "user",
+        }
+    
+    return profile

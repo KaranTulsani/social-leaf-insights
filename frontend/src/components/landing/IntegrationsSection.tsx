@@ -40,6 +40,7 @@ const plans = [
       "Custom reports & PDF export",
       "Best posting time analysis",
       "Competitor tracking",
+      "AI Voice Coach",
       "Priority email support",
     ],
     cta: "Start Free Trial",
@@ -57,10 +58,12 @@ const plans = [
       "White-label reports",
       "API access",
       "Custom AI training",
+      "AI Voice Coach",
+      "Hook Detector (VLM)",
       "Dedicated account manager",
       "24/7 priority support",
     ],
-    cta: "Contact Sales",
+    cta: "Start Free Trial",
   },
 ];
 

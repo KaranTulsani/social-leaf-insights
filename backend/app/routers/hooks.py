@@ -1,13 +1,16 @@
 """
 Hooks Router
 API endpoints for video hook analysis.
+Protected by authentication and plan-based access control.
 """
 
-from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
 from fastapi.responses import JSONResponse
 import os
-from typing import Optional
+from typing import Optional, Dict
 
+from app.core.auth import get_current_user_with_profile
+from app.core.plan_access import assert_feature_access
 from app.services.video_processor import (
     extract_frames,
     save_temp_video,
@@ -27,10 +30,12 @@ MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB
 async def analyze_video_hook(
     video: UploadFile = File(...),
     interval: float = 1.0,
-    max_frames: int = 30
+    max_frames: int = 30,
+    profile: Dict = Depends(get_current_user_with_profile)
 ):
     """
     Analyze a video to find the best hook moment.
+    Requires Business plan.
     
     - **video**: Video file (mp4, mov, avi, webm, mkv)
     - **interval**: Seconds between frame captures (default: 1.0)
@@ -38,6 +43,9 @@ async def analyze_video_hook(
     
     Returns hook analysis with timestamp, reason, and frame image.
     """
+    # Check plan access - VLM requires Business plan
+    assert_feature_access(profile, "vlm")
+    
     # Validate file extension
     file_ext = os.path.splitext(video.filename or "")[1].lower()
     if file_ext not in ALLOWED_EXTENSIONS:

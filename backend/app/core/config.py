@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     supabase_url: str
     supabase_key: str
     supabase_service_key: Optional[str] = None  # Made optional
+    supabase_jwt_secret: Optional[str] = None  # For JWT verification
     
     # AI - support both OpenAI and Gemini
     openai_api_key: Optional[str] = ""
