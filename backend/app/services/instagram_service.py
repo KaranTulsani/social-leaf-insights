@@ -158,3 +158,78 @@ async def get_recent_media(limit: int = 10) -> Optional[list]:
             })
         
         return media
+
+# ================== PUBLISHING (Direct API) ==================
+
+import os
+
+async def create_media_container(image_url: str, caption: str) -> str:
+    """
+    Step 1: Create a media container for the image.
+    Uses environment variables for authentication.
+    """
+    ig_user_id = os.getenv("IG_USER_ID")
+    access_token = os.getenv("IG_PAGE_ACCESS_TOKEN")
+
+    if not ig_user_id or not access_token:
+        raise RuntimeError("IG_USER_ID or IG_PAGE_ACCESS_TOKEN not configured in environment")
+
+    url = f"{INSTAGRAM_API_BASE}/{ig_user_id}/media"
+    
+    payload = {
+        "image_url": image_url,
+        "caption": caption,
+        "access_token": access_token
+    }
+
+    async with httpx.AsyncClient() as client:
+        # DEV MODE BYPASS: Instagram cannot fetch localhost URLs. 
+        # If we are on localhost, mock the response so the UI flow can be tested.
+        if "localhost" in image_url or "127.0.0.1" in image_url:
+            print(f"⚠️  DEV MODE: Skipping Instagram API call for localhost URL: {image_url}")
+            return "mock_creation_id_12345"
+
+        # Real API Call
+        response = await client.post(url, params=payload)
+        
+        if response.status_code != 200:
+            error_data = response.json()
+            print(f"Instagram API Error Body: {error_data}")
+            error_msg = error_data.get("error", {}).get("message", "Unknown error")
+            raise RuntimeError(f"Instagram API Error (Create Container): {error_msg}")
+            
+        data = response.json()
+        return data["id"]
+
+
+async def publish_media(creation_id: str) -> dict:
+    """
+    Step 2: Publish the media container.
+    """
+    ig_user_id = os.getenv("IG_USER_ID")
+    access_token = os.getenv("IG_PAGE_ACCESS_TOKEN")
+
+    if not ig_user_id or not access_token:
+        raise RuntimeError("IG_USER_ID or IG_PAGE_ACCESS_TOKEN not configured in environment")
+
+    url = f"{INSTAGRAM_API_BASE}/{ig_user_id}/media_publish"
+    
+    payload = {
+        "creation_id": creation_id,
+        "access_token": access_token
+    }
+
+    async with httpx.AsyncClient() as client:
+        # DEV MODE BYPASS
+        if creation_id == "mock_creation_id_12345":
+            print(f"⚠️  DEV MODE: Mocking successful publish for creation_id: {creation_id}")
+            return {"id": "mock_ig_media_id_98765"}
+
+        response = await client.post(url, params=payload)
+        
+        if response.status_code != 200:
+            error_data = response.json()
+            error_msg = error_data.get("error", {}).get("message", "Unknown error")
+            raise RuntimeError(f"Instagram API Error (Publish): {error_msg}")
+            
+        return response.json()

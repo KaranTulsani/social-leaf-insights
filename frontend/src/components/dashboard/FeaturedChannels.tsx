@@ -35,7 +35,8 @@ interface FeaturedChannel {
   recent_videos: Video[];
 }
 
-const formatNumber = (num: number): string => {
+const formatNumber = (num: number | undefined | null): string => {
+  if (num === undefined || num === null) return "0";
   if (num >= 1000000000) return (num / 1000000000).toFixed(1) + "B";
   if (num >= 1000000) return (num / 1000000).toFixed(1) + "M";
   if (num >= 1000) return (num / 1000).toFixed(1) + "K";
@@ -114,7 +115,7 @@ export const FeaturedChannels = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {channels.map((item, index) => (
             <motion.div
-              key={item.key}
+              key={item.key || index}
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.3, delay: index * 0.1 }}
@@ -123,21 +124,21 @@ export const FeaturedChannels = () => {
               {/* Channel Header */}
               <div className="flex items-center gap-3 mb-4">
                 <img
-                  src={item.channel.thumbnail}
-                  alt={item.channel.title}
-                  className="h-12 w-12 rounded-full object-cover"
+                  src={item?.channel?.thumbnail || ""}
+                  alt={item?.channel?.title || "Channel"}
+                  className="h-12 w-12 rounded-full object-cover bg-card"
                 />
                 <div className="flex-1 min-w-0">
                   <h4 className="font-semibold text-foreground truncate">
-                    {item.channel.title}
+                    {item?.channel?.title || "Unknown Channel"}
                   </h4>
-                  <p className="text-sm text-muted-foreground">{item.channel.customUrl}</p>
+                  <p className="text-sm text-muted-foreground">{item?.channel?.customUrl || ""}</p>
                 </div>
                 <Button
                   variant="ghost"
                   size="icon"
                   className="shrink-0"
-                  onClick={() => window.open(`https://youtube.com/${item.channel.customUrl}`, "_blank")}
+                  onClick={() => item?.channel?.customUrl && window.open(`https://youtube.com/${item.channel.customUrl}`, "_blank")}
                 >
                   <ExternalLink className="h-4 w-4" />
                 </Button>
@@ -150,7 +151,7 @@ export const FeaturedChannels = () => {
                     <Users className="h-3.5 w-3.5" />
                   </div>
                   <p className="text-lg font-bold text-foreground">
-                    {formatNumber(item.channel.statistics.subscribers)}
+                    {formatNumber(item?.channel?.statistics?.subscribers)}
                   </p>
                   <p className="text-xs text-muted-foreground">Subscribers</p>
                 </div>
@@ -159,7 +160,7 @@ export const FeaturedChannels = () => {
                     <Eye className="h-3.5 w-3.5" />
                   </div>
                   <p className="text-lg font-bold text-foreground">
-                    {formatNumber(item.channel.statistics.views)}
+                    {formatNumber(item?.channel?.statistics?.views)}
                   </p>
                   <p className="text-xs text-muted-foreground">Total Views</p>
                 </div>
@@ -168,7 +169,7 @@ export const FeaturedChannels = () => {
                     <PlayCircle className="h-3.5 w-3.5" />
                   </div>
                   <p className="text-lg font-bold text-foreground">
-                    {formatNumber(item.channel.statistics.videos)}
+                    {formatNumber(item?.channel?.statistics?.videos)}
                   </p>
                   <p className="text-xs text-muted-foreground">Videos</p>
                 </div>
@@ -176,24 +177,26 @@ export const FeaturedChannels = () => {
 
               {/* Recent Videos */}
               <div className="flex gap-2 overflow-hidden">
-                {item.recent_videos.slice(0, 3).map((video) => (
+                {item?.recent_videos?.slice(0, 3).map((video) => (
                   <div
-                    key={video.id}
+                    key={video?.id || Math.random()}
                     className="flex-1 min-w-0 cursor-pointer group"
-                    onClick={() => window.open(`https://youtube.com/watch?v=${video.id}`, "_blank")}
+                    onClick={() => video?.id && window.open(`https://youtube.com/watch?v=${video.id}`, "_blank")}
                   >
-                    <div className="relative aspect-video rounded-lg overflow-hidden mb-1">
-                      <img
-                        src={video.thumbnail}
-                        alt={video.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                      />
+                    <div className="relative aspect-video rounded-lg overflow-hidden mb-1 bg-card">
+                      {video?.thumbnail && (
+                        <img
+                          src={video.thumbnail}
+                          alt={video?.title || "Video"}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                        />
+                      )}
                       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
                         <PlayCircle className="h-6 w-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
                       </div>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      {formatNumber(video.statistics.views)} views
+                      {formatNumber(video?.statistics?.views)} views
                     </p>
                   </div>
                 ))}

@@ -11,7 +11,8 @@ import {
   Mic,
   Zap,
   Lock,
-  User
+  User,
+  ImagePlus
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/auth/AuthContext";
@@ -23,6 +24,7 @@ const sidebarLinks = [
   { icon: BarChart3, label: "Analytics", href: "/analytics", feature: null },
   { icon: TrendingUp, label: "Performance", href: "/performance", feature: null },
   { icon: Users, label: "Audience", href: "/audience", feature: null },
+  { icon: ImagePlus, label: "Create Post", href: "/create-post", feature: null },
   { icon: Mic, label: "Voice Coach", href: "/voice-coach", feature: "voiceCoach" as FeatureType },
   { icon: Zap, label: "Hook Detector", href: "/hook-detector", feature: "vlm" as FeatureType },
   { icon: Settings, label: "Settings", href: "/settings", feature: null },
@@ -88,10 +90,10 @@ export function Sidebar() {
                     to={isLocked ? "#" : link.href}
                     onClick={(e) => handleNavClick(e, link)}
                     className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${isActive
-                        ? "bg-primary text-primary-foreground"
-                        : isLocked
-                          ? "text-muted-foreground/50 hover:bg-muted/50 cursor-not-allowed"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      ? "bg-primary text-primary-foreground"
+                      : isLocked
+                        ? "text-muted-foreground/50 hover:bg-muted/50 cursor-not-allowed"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
                       }`}
                   >
                     <link.icon className="h-5 w-5" />
@@ -108,8 +110,8 @@ export function Sidebar() {
             <Link
               to="/account"
               className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${location.pathname === "/account"
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 }`}
             >
               <User className="h-5 w-5" />

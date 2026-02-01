@@ -35,6 +35,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from fastapi.staticfiles import StaticFiles
+import os
+
+# Ensure upload directory exists
+os.makedirs("app/uploads", exist_ok=True)
+
+# Mount uploads directory
+app.mount("/uploads", StaticFiles(directory="app/uploads"), name="uploads")
+
 # Include routers
 app.include_router(analytics.router, prefix="/api/analytics", tags=["Analytics"])
 app.include_router(platforms.router, prefix="/api/platforms", tags=["Platforms"])
@@ -44,6 +53,10 @@ app.include_router(voice_coach.router, prefix="/api/voice-coach", tags=["Voice C
 app.include_router(hooks.router)  # Hook detector routes at /api/hooks/*
 app.include_router(oauth_router)  # OAuth routes at /auth/*
 app.include_router(users.router)  # User profile routes at /api/users/*
+from app.routers import post
+app.include_router(post.router, prefix="/api/post", tags=["Post Creation"])
+from app.routers import instagram_publish
+app.include_router(instagram_publish.router, prefix="/api/instagram", tags=["Instagram Publish"])
 
 
 @app.get("/")

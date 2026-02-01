@@ -51,17 +51,34 @@ export interface DashboardData {
   best_times: BestTimes;
 }
 
+export interface PostPreviewResponse {
+  caption: string;
+  hashtags: string[];
+  cta: string;
+  style: string;
+  optimized_image_path: string;
+  auto_post: boolean;
+}
+
+
 // Helper function for API calls
 async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
 
   try {
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+      ...options?.headers,
+    };
+
+    if (options?.body instanceof FormData) {
+      // @ts-ignore
+      delete headers['Content-Type'];
+    }
+
     const response = await fetch(url, {
       ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...options?.headers,
-      },
+      headers,
     });
 
     if (!response.ok) {
@@ -166,11 +183,20 @@ export const api = {
       headers: { Authorization: `Bearer ${token}` },
     }),
 
-  connectPlatform: (token: string, platformName: string, accessToken: string) =>
-    fetchApi<any>('/api/platforms/connect', {
+
+  // Posts
+  generatePost: (token: string, formData: FormData) =>
+    fetchApi<PostPreviewResponse>('/api/post/generate', {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ platform_name: platformName, access_token: accessToken }),
+      body: formData, // FormData handles content-type automatically
+    }),
+
+  publishToInstagram: (token: string, payload: { image_url: string; caption: string }) =>
+    fetchApi<any>('/api/instagram/publish', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(payload),
     }),
 };
 

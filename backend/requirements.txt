@@ -31,3 +31,4 @@ Pillow>=10.0.0
 
 # AI Services
 google-generativeai>=0.3.0  # Gemini (fallback for vision)
+openai>=1.0.0
