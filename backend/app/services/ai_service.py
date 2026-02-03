@@ -5,6 +5,10 @@ Uses OpenAI or Gemini for natural language processing.
 import openai
 from typing import Dict, Any, List, Optional
 from datetime import datetime
+import json
+import google.generativeai as genai
+from PIL import Image
+import io
 from app.core.config import get_settings
 from app.core.supabase import get_supabase
 
@@ -18,6 +22,111 @@ class AIService:
         self.openai_key = settings.openai_api_key
         self.gemini_key = settings.gemini_api_key
     
+        if self.gemini_key:
+            genai.configure(api_key=self.gemini_key)
+    
+    async def generate_instagram_caption(
+        self, 
+        image_bytes: bytes, 
+        niche: Optional[str] = None, 
+        tone: Optional[str] = None, 
+        goal: Optional[str] = None, 
+        cta: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Generate an Instagram-optimized caption using Gemini Vision."""
+        
+        if not self.gemini_key:
+            raise Exception("Gemini API Key is not configured")
+
+        try:
+            # Prepare image for Gemini
+            image = Image.open(io.BytesIO(image_bytes))
+            
+            # Construct Prompt
+            prompt = """
+            You are an expert Instagram Social Media Manager. 
+            Generate a caption for this image following these STRICT rules:
+            
+            1. Analyze the image visually (emotion, subject, colors).
+            2. Match the requested tone/niche/goal if provided.
+            3. CREATE VALID JSON ONLY. No markdown, no "here is result".
+            
+            INPUT CONTEXT:
+            """
+            
+            if niche: prompt += f"\n- Niche: {niche}"
+            if tone: prompt += f"\n- Tone: {tone}"
+            if goal: prompt += f"\n- Goal: {goal}"
+            if cta: prompt += f"\n- CTA Requirement: {cta}"
+            
+            prompt += """
+            
+            OUTPUT FORMAT (JSON):
+            {
+              "caption": "The actual caption text with emojis",
+              "hashtags": ["#tag1", "#tag2", "#tag3", "#tag4", "#tag5"],
+              "cta": "The Call to Action line used",
+              "style": "The chosen style (short|medium|quirky|bold|educational)"
+            }
+            
+            RULES:
+            - Hook in the FIRST line.
+            - CTA in the LAST line.
+            - 5-8 relevant hashtags.
+            - NO preamble. JUST JSON.
+            """
+
+            # Try multiple models in order of preference
+            candidate_models = [
+                'gemini-2.5-flash-lite',
+                'gemini-2.5-flash-image',
+                'gemini-1.5-flash',
+                'gemini-1.5-flash-001',
+                'gemini-1.5-flash-latest',
+                'gemini-pro-vision',
+                'gemini-1.0-pro-vision-latest'
+            ]
+            
+            response = None
+            last_error = None
+
+            for model_name in candidate_models:
+                try:
+                    print(f"Attempting to generate caption with model: {model_name}")
+                    model = genai.GenerativeModel(model_name)
+                    response = model.generate_content([prompt, image])
+                    break # Success, exit loop
+                except Exception as e:
+                    print(f"Model {model_name} failed: {e}")
+                    last_error = e
+                    continue
+            
+            if not response:
+                # If all candidates failed, list available models for debugging
+                try:
+                    print("All candidate models failed. Listing available models:")
+                    for m in genai.list_models():
+                        print(f"- {m.name} ({m.supported_generation_methods})")
+                except Exception as list_err:
+                    print(f"Could not list models: {list_err}")
+                
+                raise Exception(f"All AI models failed. Last error: {str(last_error)}")
+            
+            # Parse JSON safely
+            text = response.text.strip()
+            # Remove markdown code blocks if present
+            if text.startswith("```json"):
+                text = text[7:]
+            if text.endswith("```"):
+                text = text[:-3]
+            text = text.strip()
+            
+            return json.loads(text)
+            
+        except Exception as e:
+            print(f"Error generating caption: {e}")
+            raise Exception(f"AI Generation Failed: {str(e)}")
+
     async def answer_query(self, question: str, context: Dict[str, Any]) -> str:
         """Answer a natural language question about analytics."""
         
