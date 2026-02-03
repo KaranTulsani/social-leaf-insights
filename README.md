@@ -9,13 +9,16 @@
 
 ## ✨ Features
 
-- **🎯 Hook Detector** - AI analyzes video frames to find the most scroll-stopping moment (Business plan)
+- **📱 Full Mobile Support** - 100% responsive layout with new Sidebar/MobileNav system.
+- **📄 Pro PDF Reporting** - Export beautiful analytics reports directly from the dashboard.
+- **⚡ Supercharged APIs** - Real-time YouTube integration with smart backend caching for instant loads.
+- **🎯 Hook Detector** - AI analyzes video frames to find the scroll-stopping moments (Business plan)
 - **🎙️ Voice Coach** - AI-powered script analysis with voice synthesis via ElevenLabs (Professional+)
 - **📊 Analytics Dashboard** - Cross-platform social media performance metrics
-- **🔍 Competitor Spyglass** - Track and analyze competitor content
+- **🔍 Competitor Spyglass** - Benchmark against any YouTube channel using real API data
 - **📈 Trend Analysis** - Discover trending niches and content styles
-- **🔐 Supabase Auth** - Secure email/password authentication
-- **💳 Plan-based Access** - Tiered feature access (Starter, Professional, Business)
+- **🔐 Secure Auth** - Supabase-managed authentication with profile-based permissions
+- **💳 Plan-based Access** - Automated feature gating for Starter, Professional, and Business tiers
 
 ## 📋 Plans
 
@@ -25,7 +28,8 @@
 | Data History | 7 days | 90 days | 1 year |
 | AI Voice Coach | ❌ | ✅ | ✅ |
 | Hook Detector (VLM) | ❌ | ❌ | ✅ |
-| API Access | ❌ | ❌ | ✅ |
+| PDF Export | ✅ | ✅ | ✅ |
+| Competitor Spyglass | ❌ | ✅ | ✅ |
 | Team Collaboration | ❌ | ❌ | 5 seats |
 
 ## 🚀 Quick Start
@@ -105,14 +109,14 @@ Open **http://localhost:8080** in your browser!
 
 ### Backend (`backend/.env`)
 
-| Variable | Description | Get it from |
-|----------|-------------|-------------|
-| `SUPABASE_URL` | Project URL | Supabase Dashboard |
-| `SUPABASE_KEY` | Anon key | Supabase Dashboard > API |
-| `SUPABASE_SERVICE_KEY` | Service role key | Supabase Dashboard > API |
-| `OPENROUTER_API_KEY` | AI vision (FREE) | [openrouter.ai/keys](https://openrouter.ai/keys) |
-| `GEMINI_API_KEY` | Fallback AI | [aistudio.google.com](https://aistudio.google.com/apikey) |
-| `ELEVENLABS_API_KEY` | Voice | [elevenlabs.io](https://elevenlabs.io) |
+| Variable | Description |
+|----------|-------------|
+| `SUPABASE_URL` | Your Supabase project URL |
+| `SUPABASE_KEY` | Your Supabase Anon key |
+| `OPENROUTER_API_KEY` | Required for VLM Hook Detection |
+| `GEMINI_API_KEY` | Primary AI for script analysis & benchmarking |
+| `ELEVENLABS_API_KEY` | Required for AI Voice Coach audio generation |
+| `YOUTUBE_API_KEY` | Required for real-time Competitor analytics |
 
 ### Frontend (`frontend/.env`)
 
@@ -124,10 +128,11 @@ Open **http://localhost:8080** in your browser!
 
 ## 🛠️ Tech Stack
 
-- **Frontend:** React 18, TypeScript, Vite, TailwindCSS, Framer Motion
-- **Backend:** FastAPI, Python 3.10+, OpenCV
-- **Auth & Database:** Supabase (PostgreSQL + Row Level Security)
-- **AI:** OpenRouter (Qwen-VL), Google Gemini, ElevenLabs
+- **Frontend:** React 18, TypeScript, Vite, TailwindCSS, Framer Motion, Lucide
+- **Backend:** FastAPI (Python), OpenCV, Pydantic, HTTPX (Async API calls)
+- **Auth & DB:** Supabase (Postgres), JWT, RLS
+- **AI Models:** Google Gemini 1.5, Qwen-VL (via OpenRouter), ElevenLabs TTS
+- **Data:** YouTube Data API v3, Instagram Graph API (Simulated)
 
 ## 📄 License
 
