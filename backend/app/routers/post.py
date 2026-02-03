@@ -1,8 +1,10 @@
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException, status
-from typing import Optional, List
+from typing import Optional, List, Dict
 from pydantic import BaseModel
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, status, Depends
 from app.services.ai_service import ai_service
 from app.services.image_service import optimize_image
+from app.core.auth import get_current_user_with_profile
+from app.core.plan_access import assert_feature_access
 
 router = APIRouter()
 
@@ -21,11 +23,17 @@ async def generate_post(
     tone: Optional[str] = Form(None),
     goal: Optional[str] = Form(None),
     cta: Optional[str] = Form(None),
-    auto_post: bool = Form(False)
+    auto_post: bool = Form(False),
+    profile: Dict = Depends(get_current_user_with_profile)
 ):
     """
     Generate an Instagram post (Caption + Optimized Image) from an uploaded image.
     """
+    """
+    Generate an Instagram post (Caption + Optimized Image) from an uploaded image.
+    Requires Business Plan.
+    """
+    assert_feature_access(profile, "create_post")
     try:
         # 1. Generate Caption (AI)
         # We need to read file bytes for AI

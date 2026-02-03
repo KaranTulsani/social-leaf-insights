@@ -10,10 +10,13 @@ import {
   LogOut,
   Mic,
   Zap,
+  Swords,
   Lock,
   User,
-  ImagePlus
+  ImagePlus,
+  Menu
 } from "lucide-react";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/auth/AuthContext";
 import { canAccessFeature, PLAN_DISPLAY_NAMES, FeatureType, PlanType } from "@/lib/planPermissions";
@@ -24,13 +27,14 @@ const sidebarLinks = [
   { icon: BarChart3, label: "Analytics", href: "/analytics", feature: null },
   { icon: TrendingUp, label: "Performance", href: "/performance", feature: null },
   { icon: Users, label: "Audience", href: "/audience", feature: null },
-  { icon: ImagePlus, label: "Create Post", href: "/create-post", feature: null },
+  { icon: ImagePlus, label: "Create Post", href: "/create-post", feature: "createPost" as FeatureType },
   { icon: Mic, label: "Voice Coach", href: "/voice-coach", feature: "voiceCoach" as FeatureType },
   { icon: Zap, label: "Hook Detector", href: "/hook-detector", feature: "vlm" as FeatureType },
+  { icon: Swords, label: "Competitor Spy", href: "/competitor-spy", feature: null }, // Free for now
   { icon: Settings, label: "Settings", href: "/settings", feature: null },
 ];
 
-export function Sidebar() {
+function SidebarContent({ onClose }: { onClose?: () => void }) {
   const location = useLocation();
   const { profile, signOut } = useAuth();
   const [upgradeModal, setUpgradeModal] = useState<{ isOpen: boolean; feature: FeatureType | null }>({
@@ -55,6 +59,8 @@ export function Sidebar() {
     if (link.feature && !canAccessFeature(userPlan, userRole, link.feature)) {
       e.preventDefault();
       setUpgradeModal({ isOpen: true, feature: link.feature });
+    } else if (onClose) {
+      onClose();
     }
   };
 
@@ -64,10 +70,10 @@ export function Sidebar() {
 
   return (
     <>
-      <aside className="hidden lg:flex w-64 flex-col bg-card border-r border-border h-screen sticky top-0">
+      <div className="flex flex-col h-full bg-card border-r border-border">
         {/* Logo */}
         <div className="px-6 py-4 border-b border-border flex items-center h-[65px]">
-          <Link to="/" className="flex items-center gap-2">
+          <Link to="/" className="flex items-center gap-2" onClick={onClose}>
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary shadow-soft">
               <Leaf className="h-5 w-5 text-primary-foreground" />
             </div>
@@ -78,7 +84,7 @@ export function Sidebar() {
         </div>
 
         {/* Nav Links */}
-        <nav className="flex-1 p-4">
+        <nav className="flex-1 p-4 overflow-y-auto">
           <ul className="space-y-2">
             {sidebarLinks.map((link) => {
               const isActive = location.pathname === link.href;
@@ -109,6 +115,7 @@ export function Sidebar() {
           <div className="mt-4 pt-4 border-t border-border">
             <Link
               to="/account"
+              onClick={onClose}
               className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${location.pathname === "/account"
                 ? "bg-primary text-primary-foreground"
                 : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -121,7 +128,7 @@ export function Sidebar() {
         </nav>
 
         {/* User */}
-        <div className="p-4 border-t border-border">
+        <div className="p-4 border-t border-border mt-auto">
           <div className="flex items-center gap-3 px-4 py-3">
             <div className="h-10 w-10 rounded-full bg-leaf-200 flex items-center justify-center">
               <span className="text-leaf-700 font-semibold text-sm">{userInitials}</span>
@@ -135,7 +142,7 @@ export function Sidebar() {
             </Button>
           </div>
         </div>
-      </aside>
+      </div>
 
       {/* Upgrade Modal */}
       {upgradeModal.feature && (
@@ -147,5 +154,28 @@ export function Sidebar() {
         />
       )}
     </>
+  );
+}
+
+export function Sidebar() {
+  return (
+    <aside className="hidden lg:flex w-64 flex-col h-screen sticky top-0">
+      <SidebarContent />
+    </aside>
+  );
+}
+
+export function MobileNav() {
+  return (
+    <Sheet>
+      <SheetTrigger asChild>
+        <Button variant="ghost" size="icon" className="lg:hidden mr-2">
+          <Menu className="h-5 w-5" />
+        </Button>
+      </SheetTrigger>
+      <SheetContent side="left" className="p-0 w-64 border-r border-border">
+        <SidebarContent />
+      </SheetContent>
+    </Sheet>
   );
 }

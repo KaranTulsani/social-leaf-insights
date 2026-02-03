@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/components/auth/AuthContext";
+import { SocialDataProvider } from "@/contexts/SocialDataContext";
 import Index from "./pages/Index";
 import HowItWorks from "./pages/HowItWorks";
 import BrandCampaigns from "./pages/BrandCampaigns";
@@ -21,6 +22,7 @@ import HookDetector from "./pages/HookDetector";
 import ChoosePlan from "./pages/ChoosePlan";
 import Payment from "./pages/Payment";
 import Account from "./pages/Account";
+import CompetitorSpy from "./pages/CompetitorSpy";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import ErrorBoundary from "@/components/ui/ErrorBoundary";
@@ -31,116 +33,126 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <ErrorBoundary>
       <AuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Routes>
-              {/* Public routes */}
-              <Route path="/" element={<Index />} />
-              <Route path="/how-it-works" element={<HowItWorks />} />
-              <Route path="/brand-campaigns" element={<BrandCampaigns />} />
-              <Route path="/sign-in" element={<SignIn />} />
-              <Route path="/sign-up" element={<SignUp />} />
-              <Route path="/connect-accounts" element={<ConnectAccounts />} />
+        <SocialDataProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <Routes>
+                {/* Public routes */}
+                <Route path="/" element={<Index />} />
+                <Route path="/how-it-works" element={<HowItWorks />} />
+                <Route path="/brand-campaigns" element={<BrandCampaigns />} />
+                <Route path="/sign-in" element={<SignIn />} />
+                <Route path="/sign-up" element={<SignUp />} />
+                <Route path="/connect-accounts" element={<ConnectAccounts />} />
 
-              {/* Plan selection (protected but allows no plan) */}
-              <Route
-                path="/choose-plan"
-                element={
-                  <ProtectedRoute>
-                    <ChoosePlan />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/payment"
-                element={
-                  <ProtectedRoute>
-                    <Payment />
-                  </ProtectedRoute>
-                }
-              />
+                {/* Plan selection (protected but allows no plan) */}
+                <Route
+                  path="/choose-plan"
+                  element={
+                    <ProtectedRoute>
+                      <ChoosePlan />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/payment"
+                  element={
+                    <ProtectedRoute>
+                      <Payment />
+                    </ProtectedRoute>
+                  }
+                />
 
-              {/* Protected routes (require auth + plan) */}
-              <Route
-                path="/dashboard"
-                element={
-                  <ProtectedRoute>
-                    <Dashboard />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/create-post"
-                element={
-                  <ProtectedRoute>
-                    <CreatePost />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/analytics"
-                element={
-                  <ProtectedRoute>
-                    <Analytics />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/performance"
-                element={
-                  <ProtectedRoute>
-                    <Performance />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/audience"
-                element={
-                  <ProtectedRoute>
-                    <Audience />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/settings"
-                element={
-                  <ProtectedRoute>
-                    <Settings />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/voice-coach"
-                element={
-                  <ProtectedRoute>
-                    <VoiceCoach />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/hook-detector"
-                element={
-                  <ProtectedRoute>
-                    <HookDetector />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/account"
-                element={
-                  <ProtectedRoute>
-                    <Account />
-                  </ProtectedRoute>
-                }
-              />
+                {/* Protected routes (require auth + plan) */}
+                <Route
+                  path="/dashboard"
+                  element={
+                    <ProtectedRoute>
+                      <Dashboard />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/create-post"
+                  element={
+                    <ProtectedRoute>
+                      <CreatePost />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/analytics"
+                  element={
+                    <ProtectedRoute>
+                      <Analytics />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/performance"
+                  element={
+                    <ProtectedRoute>
+                      <Performance />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/audience"
+                  element={
+                    <ProtectedRoute>
+                      <Audience />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/settings"
+                  element={
+                    <ProtectedRoute>
+                      <Settings />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/voice-coach"
+                  element={
+                    <ProtectedRoute>
+                      <VoiceCoach />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/hook-detector"
+                  element={
+                    <ProtectedRoute>
+                      <HookDetector />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/account"
+                  element={
+                    <ProtectedRoute>
+                      <Account />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/competitor-spy"
+                  element={
+                    <ProtectedRoute>
+                      <CompetitorSpy />
+                    </ProtectedRoute>
+                  }
+                />
 
-              {/* Catch-all */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-        </TooltipProvider>
+                {/* Catch-all */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </BrowserRouter>
+          </TooltipProvider>
+        </SocialDataProvider>
       </AuthProvider>
     </ErrorBoundary>
   </QueryClientProvider>

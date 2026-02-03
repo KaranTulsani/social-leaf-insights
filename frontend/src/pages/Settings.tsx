@@ -20,6 +20,7 @@ import {
   Key,
   ExternalLink,
 } from "lucide-react";
+import { Sidebar, MobileNav } from "@/components/layout/Sidebar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -46,6 +47,7 @@ interface PlatformConnection {
   status: "Live" | "Simulated" | "Not Connected";
   apiKey?: string;
   channelId?: string;
+  publicHandle?: string;
   helpUrl: string;
 }
 
@@ -84,7 +86,7 @@ const saveSettings = (settings: AppSettings) => {
 };
 
 // Load platform connections from localStorage
-const loadConnections = (): Record<string, { connected: boolean; status: string; apiKey?: string; channelId?: string }> => {
+const loadConnections = (): Record<string, { connected: boolean; status: string; apiKey?: string; channelId?: string; publicHandle?: string }> => {
   // Default connections - YouTube always connected with real API
   const defaults = {
     instagram: { connected: false, status: "Not connected" },
@@ -154,19 +156,60 @@ const Settings = () => {
     try {
       const response = await fetch("http://localhost:8000/auth/status");
       if (response.ok) {
-        const status = await response.json();
+        const status = await response.json(); // Parse the backend response
+        const currentLocal = loadConnections(); // Get fresh local state
         const newConnections: Record<string, any> = {};
 
         for (const [platform, data] of Object.entries(status)) {
-          const platformData = data as { connected: boolean; has_credentials: boolean };
+          const platformData = data as { connected: boolean; has_credentials: boolean; api_key_available?: boolean };
+
+          // Default to what backend says
+          let isConnected = platformData.connected;
+          let statusText = isConnected ? "Live" : (platformData.has_credentials ? "Ready" : "Not Connected");
+
+          // Special case for YouTube
+          if (platform === "youtube") {
+            if (platformData.api_key_available) {
+              // If API key is real, we have Real Data
+              if (!isConnected) {
+                isConnected = true;
+                statusText = "Real Time Data";
+              }
+            } else {
+              // If no API key and no OAuth, we still fallback to Backend Simulation/Featured
+              // So we treat it as Simulated by default instead of Disconnected
+              if (!isConnected && !currentLocal["youtube"]?.apiKey) {
+                isConnected = true;
+                statusText = "Simulated (Public)";
+              }
+            }
+          }
+
+          // PRESERVE LOCAL SIMULATION STATE if backend says disconnected
+          // If we have a local "Simulated" connection, keep it unless backend says "Live"
+          const localConn = currentLocal[platform];
+          if (!isConnected && localConn?.connected && (localConn.status.includes("Simulated") || localConn.apiKey)) {
+            // Be careful: if user explicitly disconnected in backend, we usually want to reflect that.
+            // But here "backend disconnected" just means "no oauth token".
+            // So if we have a local API key or handle, we keep "Simulated"/"Real Time" status.
+            isConnected = true;
+            statusText = localConn.status;
+          }
+
           newConnections[platform] = {
-            connected: platformData.connected,
-            status: platformData.connected ? "Live" : (platformData.has_credentials ? "Ready" : "Not Connected"),
+            connected: isConnected,
+            status: statusText,
+            // Preserve existing keys/handles if not provided by backend
+            apiKey: localConn?.apiKey,
+            channelId: localConn?.channelId,
+            publicHandle: localConn?.publicHandle,
           };
         }
 
-        setConnections(prev => ({ ...prev, ...newConnections }));
-        saveConnections({ ...connections, ...newConnections });
+        setConnections(newConnections);
+        // Do NOT save to localStorage here blindly, as it might strip keys if we aren't careful.
+        // Actually, we just reconstituted the keys above. So it is safe to save.
+        saveConnections(newConnections);
       }
     } catch (error) {
       console.log("Backend not available, using local state");
@@ -178,6 +221,8 @@ const Settings = () => {
   const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
   const [apiKeyInput, setApiKeyInput] = useState("");
   const [channelIdInput, setChannelIdInput] = useState("");
+  const [publicHandleInput, setPublicHandleInput] = useState("");
+
 
   // Platform definitions
   const platformDefs: PlatformConnection[] = [
@@ -224,13 +269,18 @@ const Settings = () => {
     setSelectedPlatform(platformKey);
     setApiKeyInput("");
     setChannelIdInput("");
+    setPublicHandleInput("");
     setShowConnectModal(true);
   };
 
   // Save connection
   const handleSaveConnection = () => {
-    if (!selectedPlatform || !apiKeyInput.trim()) {
-      toast({ title: "❌ Error", description: "Please enter an API key" });
+    // Validation: Require either API Key OR Public Handle
+    if (!selectedPlatform) return;
+
+    // For specific simulation mode request
+    if (!apiKeyInput.trim() && !publicHandleInput.trim()) {
+      toast({ title: "❌ Error", description: "Please enter an API key or Public Handle" });
       return;
     }
 
@@ -238,9 +288,10 @@ const Settings = () => {
       ...connections,
       [selectedPlatform]: {
         connected: true,
-        status: "Live",
-        apiKey: apiKeyInput.trim(),
+        status: publicHandleInput.trim() ? "Simulated (Public)" : "Live",
+        apiKey: apiKeyInput.trim() || undefined,
         channelId: channelIdInput.trim() || undefined,
+        publicHandle: publicHandleInput.trim() || undefined,
       },
     };
 
@@ -269,6 +320,7 @@ const Settings = () => {
           status: "Not Connected",
           apiKey: undefined,
           channelId: undefined,
+          publicHandle: undefined,
         },
       };
 
@@ -384,378 +436,397 @@ LinkedIn,${connections.linkedin?.status},${connections.linkedin?.apiKey ? "Yes" 
   const refreshStatus = getRefreshCooldown();
 
   return (
-    <div className="min-h-screen bg-muted">
-      {/* Connect Modal */}
-      {showConnectModal && selectedPlatform && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-card rounded-2xl p-6 w-full max-w-md border border-border shadow-xl"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <div className={`p-2 rounded-lg ${platformDefs.find(p => p.key === selectedPlatform)?.color}`}>
-                  {(() => {
-                    const Icon = platformDefs.find(p => p.key === selectedPlatform)?.icon;
-                    return Icon ? <Icon className="h-4 w-4 text-white" /> : null;
-                  })()}
-                </div>
-                <h3 className="font-semibold">Connect {platformDefs.find(p => p.key === selectedPlatform)?.name}</h3>
-              </div>
-              <Button variant="ghost" size="icon" onClick={() => setShowConnectModal(false)}>
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium mb-1.5 block">API Key *</label>
-                <div className="relative">
-                  <Key className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    type="password"
-                    placeholder="Enter your API key..."
-                    value={apiKeyInput}
-                    onChange={(e) => setApiKeyInput(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-              </div>
-
-              {(selectedPlatform === "youtube" || selectedPlatform === "instagram") && (
-                <div>
-                  <label className="text-sm font-medium mb-1.5 block">
-                    {selectedPlatform === "youtube" ? "Channel ID" : "Account ID"} (optional)
-                  </label>
-                  <Input
-                    type="text"
-                    placeholder={selectedPlatform === "youtube" ? "UC..." : "@username"}
-                    value={channelIdInput}
-                    onChange={(e) => setChannelIdInput(e.target.value)}
-                  />
-                </div>
-              )}
-
-              <a
-                href={platformDefs.find(p => p.key === selectedPlatform)?.helpUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-primary hover:underline flex items-center gap-1"
-              >
-                How to get your API key? <ExternalLink className="h-3 w-3" />
-              </a>
-
-              <div className="flex gap-3 pt-2">
-                <Button variant="outline" className="flex-1" onClick={() => setShowConnectModal(false)}>
-                  Cancel
+    <div className="min-h-screen bg-muted flex">
+      <Sidebar />
+      <main className="flex-1 overflow-auto">
+        {/* Header with MobileNav */}
+        <header className="bg-card border-b border-border px-6 py-4 mb-8">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <MobileNav />
+              <Link to="/dashboard" className="hidden lg:block">
+                <Button variant="ghost" size="icon">
+                  <ArrowLeft className="h-5 w-5" />
                 </Button>
-                <Button className="flex-1 bg-primary" onClick={handleSaveConnection}>
-                  <CheckCircle className="h-4 w-4 mr-2" />
-                  Connect
+              </Link>
+              <h1 className="font-display text-2xl font-bold text-foreground">
+                Settings
+              </h1>
+            </div>
+            <div className="flex items-center gap-2">
+              {hasChanges && <span className="text-xs text-amber-500 hidden sm:inline">Unsaved changes</span>}
+              <span className={`text-xs px-2 py-1 rounded-full ${refreshStatus.canRefresh ? "bg-green-500/10 text-green-500" : "bg-muted text-muted-foreground"}`}>
+                {refreshStatus.message}
+              </span>
+            </div>
+          </div>
+        </header>
+
+        {/* Connect Modal */}
+        {showConnectModal && selectedPlatform && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-card rounded-2xl p-6 w-full max-w-md border border-border shadow-xl"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className={`p-2 rounded-lg ${platformDefs.find(p => p.key === selectedPlatform)?.color}`}>
+                    {(() => {
+                      const Icon = platformDefs.find(p => p.key === selectedPlatform)?.icon;
+                      return Icon ? <Icon className="h-4 w-4 text-white" /> : null;
+                    })()}
+                  </div>
+                  <h3 className="font-semibold">Connect {platformDefs.find(p => p.key === selectedPlatform)?.name}</h3>
+                </div>
+                <Button variant="ghost" size="icon" onClick={() => setShowConnectModal(false)}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium mb-1.5 block">API Key *</label>
+                  <div className="relative">
+                    <Key className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      type="password"
+                      placeholder="Enter your API key..."
+                      value={apiKeyInput}
+                      onChange={(e) => setApiKeyInput(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
+
+                {(selectedPlatform === "youtube" || selectedPlatform === "instagram") && (
+                  <div>
+                    <label className="text-sm font-medium mb-1.5 block">
+                      {selectedPlatform === "youtube" ? "Channel ID" : "Account ID"} (optional)
+                    </label>
+                    <Input
+                      type="text"
+                      placeholder={selectedPlatform === "youtube" ? "UC..." : "@username"}
+                      value={channelIdInput}
+                      onChange={(e) => setChannelIdInput(e.target.value)}
+                    />
+                  </div>
+                )}
+
+                <a
+                  href={platformDefs.find(p => p.key === selectedPlatform)?.helpUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-primary hover:underline flex items-center gap-1"
+                >
+                  How to get your API key? <ExternalLink className="h-3 w-3" />
+                </a>
+
+                {(selectedPlatform === "youtube" || selectedPlatform === "instagram") && (
+                  <div className="pt-2 border-t border-border mt-2">
+                    <p className="text-sm font-semibold mb-2 text-primary">OR Simulate Public Profile</p>
+                    <label className="text-sm font-medium mb-1.5 block">
+                      Public Handle (@username)
+                    </label>
+                    <Input
+                      placeholder="@mrbeast"
+                      value={publicHandleInput}
+                      onChange={(e) => setPublicHandleInput(e.target.value)}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Use this to track a specific public profile without login.
+                    </p>
+                  </div>
+                )}
+
+                <div className="flex gap-3 pt-2">
+                  <Button variant="outline" className="flex-1" onClick={() => setShowConnectModal(false)}>
+                    Cancel
+                  </Button>
+                  <Button className="flex-1 bg-primary" onClick={handleSaveConnection}>
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Connect
+                  </Button>
+                </div>
+              </div>
+            </motion.div>
+          </div >
+        )}
+
+
+        <div className="p-6 max-w-4xl mx-auto space-y-6">
+          {/* Platform Connections */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-card rounded-xl p-6 border border-border"
+          >
+            <div className="flex items-center gap-2 mb-4">
+              <Link2 className="h-5 w-5 text-primary" />
+              <h3 className="font-semibold">Platform Connections</h3>
+            </div>
+            <div className="space-y-3">
+              {platformDefs.map((platform) => {
+                const conn = connections[platform.key];
+                const isConnected = conn?.connected;
+                const status = conn?.status || "Not Connected";
+
+                return (
+                  <div
+                    key={platform.name}
+                    className="flex items-center justify-between p-4 rounded-lg bg-muted/50 border border-border"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`p-2 rounded-lg ${platform.color}`}>
+                        <platform.icon className="h-4 w-4 text-white" />
+                      </div>
+                      <div>
+                        <p className="font-medium">{platform.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {isConnected ? "Connected" : "Not connected"}
+                          {conn?.apiKey && <span className="ml-1 text-green-500">• API Key saved</span>}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      {isConnected ? (
+                        <>
+                          <span
+                            className={`text-xs px-2 py-1 rounded-full flex items-center gap-1 ${status === "Real Time Data" || status === "Live"
+                              ? "bg-green-500/10 text-green-500"
+                              : "bg-amber-500/10 text-amber-500"
+                              }`}
+                          >
+                            {(status === "Real Time Data" || status === "Live") && (
+                              <span className="relative flex h-1.5 w-1.5 mr-1">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-green-500"></span>
+                              </span>
+                            )}
+                            {status}
+                          </span>
+                          <Button variant="outline" size="sm" onClick={() => handleDisconnect(platform.key)}>
+                            Disconnect
+                          </Button>
+                        </>
+                      ) : (
+                        <Button size="sm" className="bg-primary" onClick={() => handleConnect(platform.key)}>
+                          Connect
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <p className="text-xs text-muted-foreground mt-4 p-3 bg-blue-500/5 rounded-lg border border-blue-500/20">
+              💡 <strong>Tip:</strong> Enter your real API keys to get live data. Without API keys, we show simulated demo data.
+            </p>
+          </motion.div>
+
+          {/* Data Preferences */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="bg-card rounded-xl p-6 border border-border"
+          >
+            <div className="flex items-center gap-2 mb-4">
+              <Sliders className="h-5 w-5 text-blue-500" />
+              <h3 className="font-semibold">Data Preferences</h3>
+            </div>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">Timezone</p>
+                  <p className="text-xs text-muted-foreground">Used for scheduling and analytics</p>
+                </div>
+                <select
+                  value={settings.timezone}
+                  onChange={(e) => updateSetting("timezone", e.target.value)}
+                  className="bg-muted border border-border rounded-lg px-3 py-2 text-sm"
+                >
+                  <option value="Asia/Kolkata">Asia/Kolkata (IST)</option>
+                  <option value="America/New_York">America/New_York (EST)</option>
+                  <option value="Europe/London">Europe/London (GMT)</option>
+                  <option value="Asia/Tokyo">Asia/Tokyo (JST)</option>
+                </select>
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">Data Refresh Frequency</p>
+                  <p className="text-xs text-muted-foreground">How often to sync platform data</p>
+                </div>
+                <div className="flex gap-2">
+                  {["1h", "6h", "12h", "24h"].map((freq) => (
+                    <button
+                      key={freq}
+                      onClick={() => updateSetting("refreshFrequency", freq)}
+                      className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${settings.refreshFrequency === freq
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted hover:bg-muted/80"
+                        }`}
+                    >
+                      {freq}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* AI Preferences */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="bg-card rounded-xl p-6 border border-border"
+          >
+            <div className="flex items-center gap-2 mb-4">
+              <Brain className="h-5 w-5 text-purple-500" />
+              <h3 className="font-semibold">AI Preferences</h3>
+            </div>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">Insight Tone</p>
+                  <p className="text-xs text-muted-foreground">How detailed should AI insights be?</p>
+                </div>
+                <div className="flex gap-2">
+                  {["concise", "detailed"].map((tone) => (
+                    <button
+                      key={tone}
+                      onClick={() => updateSetting("insightTone", tone)}
+                      className={`px-4 py-1.5 rounded-lg text-sm capitalize transition-colors ${settings.insightTone === tone
+                        ? "bg-purple-500 text-white"
+                        : "bg-muted hover:bg-muted/80"
+                        }`}
+                    >
+                      {tone}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">AI Notifications</p>
+                  <p className="text-xs text-muted-foreground">Get alerts for AI-detected insights</p>
+                </div>
+                <button
+                  onClick={() => updateSetting("notifications", !settings.notifications)}
+                  className={`w-12 h-6 rounded-full transition-colors ${settings.notifications ? "bg-primary" : "bg-muted"
+                    }`}
+                >
+                  <div
+                    className={`w-5 h-5 rounded-full bg-white shadow transition-transform ${settings.notifications ? "translate-x-6" : "translate-x-0.5"
+                      }`}
+                  />
+                </button>
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">Recommendation Style</p>
+                  <p className="text-xs text-muted-foreground">How aggressive should suggestions be?</p>
+                </div>
+                <select
+                  value={settings.recommendationStyle}
+                  onChange={(e) => updateSetting("recommendationStyle", e.target.value)}
+                  className="bg-muted border border-border rounded-lg px-3 py-2 text-sm"
+                >
+                  <option>Conservative</option>
+                  <option>Balanced</option>
+                  <option>Aggressive</option>
+                </select>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Export & Privacy */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="bg-card rounded-xl p-6 border border-border"
+          >
+            <div className="flex items-center gap-2 mb-4">
+              <Download className="h-5 w-5 text-green-500" />
+              <h3 className="font-semibold">Export & Privacy</h3>
+            </div>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">Export Format</p>
+                  <p className="text-xs text-muted-foreground">Default format for data exports</p>
+                </div>
+                <div className="flex gap-2">
+                  {["csv", "pdf", "json"].map((format) => (
+                    <button
+                      key={format}
+                      onClick={() => updateSetting("exportFormat", format)}
+                      className={`px-4 py-1.5 rounded-lg text-sm uppercase transition-colors ${settings.exportFormat === format
+                        ? "bg-green-500 text-white"
+                        : "bg-muted hover:bg-muted/80"
+                        }`}
+                    >
+                      {format}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">Data Retention</p>
+                  <p className="text-xs text-muted-foreground">How long to keep historical data</p>
+                </div>
+                <select
+                  value={settings.dataRetention}
+                  onChange={(e) => updateSetting("dataRetention", e.target.value)}
+                  className="bg-muted border border-border rounded-lg px-3 py-2 text-sm"
+                >
+                  <option>30 days</option>
+                  <option>90 days</option>
+                  <option>1 year</option>
+                  <option>Forever</option>
+                </select>
+              </div>
+              <div className="pt-4 border-t border-border flex gap-3">
+                <Button variant="outline" className="flex-1" onClick={handleExport}>
+                  {settings.exportFormat === "pdf" ? <FileText className="h-4 w-4 mr-2" /> : <Download className="h-4 w-4 mr-2" />}
+                  Export as {settings.exportFormat.toUpperCase()}
+                </Button>
+                <Button
+                  variant="destructive"
+                  className="flex-1"
+                  onClick={() => {
+                    if (confirm("Are you sure you want to delete all data? This cannot be undone.")) {
+                      localStorage.clear();
+                      toast({ title: "🗑️ Data Deleted", description: "All local data has been cleared." });
+                      navigate("/dashboard");
+                    }
+                  }}
+                >
+                  <Shield className="h-4 w-4 mr-2" />
+                  Delete All Data
                 </Button>
               </div>
             </div>
           </motion.div>
+
+          {/* Save Button */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="flex justify-end gap-3 mt-8"
+          >
+            <Button variant="outline" onClick={() => navigate("/dashboard")}>Cancel</Button>
+            <Button onClick={handleSave} disabled={!hasChanges || isSaving} className="bg-primary">
+              {isSaving ? "Saving..." : <><Save className="h-4 w-4 mr-2" />Save Changes</>}
+            </Button>
+          </motion.div>
         </div>
-      )}
-
-      {/* Header */}
-      <header className="bg-card border-b border-border px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link to="/dashboard">
-              <Button variant="ghost" size="icon">
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-            </Link>
-            <div className="flex items-center gap-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary shadow-soft">
-                <Leaf className="h-5 w-5 text-primary-foreground" />
-              </div>
-              <span className="font-display text-xl font-bold">Settings</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {hasChanges && <span className="text-xs text-amber-500">Unsaved changes</span>}
-            <span className={`text-xs px-2 py-1 rounded-full ${refreshStatus.canRefresh ? "bg-green-500/10 text-green-500" : "bg-muted text-muted-foreground"}`}>
-              {refreshStatus.message}
-            </span>
-          </div>
-        </div>
-      </header>
-
-      <div className="p-6 max-w-4xl mx-auto space-y-6">
-        {/* Platform Connections */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-card rounded-xl p-6 border border-border"
-        >
-          <div className="flex items-center gap-2 mb-4">
-            <Link2 className="h-5 w-5 text-primary" />
-            <h3 className="font-semibold">Platform Connections</h3>
-          </div>
-          <div className="space-y-3">
-            {platformDefs.map((platform) => {
-              const conn = connections[platform.key];
-              const isConnected = conn?.connected;
-              const status = conn?.status || "Not Connected";
-
-              return (
-                <div
-                  key={platform.name}
-                  className="flex items-center justify-between p-4 rounded-lg bg-muted/50 border border-border"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-lg ${platform.color}`}>
-                      <platform.icon className="h-4 w-4 text-white" />
-                    </div>
-                    <div>
-                      <p className="font-medium">{platform.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {isConnected ? "Connected" : "Not connected"}
-                        {conn?.apiKey && <span className="ml-1 text-green-500">• API Key saved</span>}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    {isConnected ? (
-                      <>
-                        <span
-                          className={`text-xs px-2 py-1 rounded-full flex items-center gap-1 ${status === "Real Time Data" || status === "Live"
-                            ? "bg-green-500/10 text-green-500"
-                            : "bg-amber-500/10 text-amber-500"
-                            }`}
-                        >
-                          {(status === "Real Time Data" || status === "Live") && (
-                            <span className="relative flex h-1.5 w-1.5 mr-1">
-                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75"></span>
-                              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-green-500"></span>
-                            </span>
-                          )}
-                          {status}
-                        </span>
-                        <Button variant="outline" size="sm" onClick={() => handleDisconnect(platform.key)}>
-                          Disconnect
-                        </Button>
-                      </>
-                    ) : (
-                      <Button size="sm" className="bg-primary" onClick={() => handleConnect(platform.key)}>
-                        Connect
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          <p className="text-xs text-muted-foreground mt-4 p-3 bg-blue-500/5 rounded-lg border border-blue-500/20">
-            💡 <strong>Tip:</strong> Enter your real API keys to get live data. Without API keys, we show simulated demo data.
-          </p>
-        </motion.div>
-
-        {/* Data Preferences */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="bg-card rounded-xl p-6 border border-border"
-        >
-          <div className="flex items-center gap-2 mb-4">
-            <Sliders className="h-5 w-5 text-blue-500" />
-            <h3 className="font-semibold">Data Preferences</h3>
-          </div>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium">Timezone</p>
-                <p className="text-xs text-muted-foreground">Used for scheduling and analytics</p>
-              </div>
-              <select
-                value={settings.timezone}
-                onChange={(e) => updateSetting("timezone", e.target.value)}
-                className="bg-muted border border-border rounded-lg px-3 py-2 text-sm"
-              >
-                <option value="Asia/Kolkata">Asia/Kolkata (IST)</option>
-                <option value="America/New_York">America/New_York (EST)</option>
-                <option value="Europe/London">Europe/London (GMT)</option>
-                <option value="Asia/Tokyo">Asia/Tokyo (JST)</option>
-              </select>
-            </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium">Data Refresh Frequency</p>
-                <p className="text-xs text-muted-foreground">How often to sync platform data</p>
-              </div>
-              <div className="flex gap-2">
-                {["1h", "6h", "12h", "24h"].map((freq) => (
-                  <button
-                    key={freq}
-                    onClick={() => updateSetting("refreshFrequency", freq)}
-                    className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${settings.refreshFrequency === freq
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted hover:bg-muted/80"
-                      }`}
-                  >
-                    {freq}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* AI Preferences */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="bg-card rounded-xl p-6 border border-border"
-        >
-          <div className="flex items-center gap-2 mb-4">
-            <Brain className="h-5 w-5 text-purple-500" />
-            <h3 className="font-semibold">AI Preferences</h3>
-          </div>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium">Insight Tone</p>
-                <p className="text-xs text-muted-foreground">How detailed should AI insights be?</p>
-              </div>
-              <div className="flex gap-2">
-                {["concise", "detailed"].map((tone) => (
-                  <button
-                    key={tone}
-                    onClick={() => updateSetting("insightTone", tone)}
-                    className={`px-4 py-1.5 rounded-lg text-sm capitalize transition-colors ${settings.insightTone === tone
-                      ? "bg-purple-500 text-white"
-                      : "bg-muted hover:bg-muted/80"
-                      }`}
-                  >
-                    {tone}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium">AI Notifications</p>
-                <p className="text-xs text-muted-foreground">Get alerts for AI-detected insights</p>
-              </div>
-              <button
-                onClick={() => updateSetting("notifications", !settings.notifications)}
-                className={`w-12 h-6 rounded-full transition-colors ${settings.notifications ? "bg-primary" : "bg-muted"
-                  }`}
-              >
-                <div
-                  className={`w-5 h-5 rounded-full bg-white shadow transition-transform ${settings.notifications ? "translate-x-6" : "translate-x-0.5"
-                    }`}
-                />
-              </button>
-            </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium">Recommendation Style</p>
-                <p className="text-xs text-muted-foreground">How aggressive should suggestions be?</p>
-              </div>
-              <select
-                value={settings.recommendationStyle}
-                onChange={(e) => updateSetting("recommendationStyle", e.target.value)}
-                className="bg-muted border border-border rounded-lg px-3 py-2 text-sm"
-              >
-                <option>Conservative</option>
-                <option>Balanced</option>
-                <option>Aggressive</option>
-              </select>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Export & Privacy */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="bg-card rounded-xl p-6 border border-border"
-        >
-          <div className="flex items-center gap-2 mb-4">
-            <Download className="h-5 w-5 text-green-500" />
-            <h3 className="font-semibold">Export & Privacy</h3>
-          </div>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium">Export Format</p>
-                <p className="text-xs text-muted-foreground">Default format for data exports</p>
-              </div>
-              <div className="flex gap-2">
-                {["csv", "pdf", "json"].map((format) => (
-                  <button
-                    key={format}
-                    onClick={() => updateSetting("exportFormat", format)}
-                    className={`px-4 py-1.5 rounded-lg text-sm uppercase transition-colors ${settings.exportFormat === format
-                      ? "bg-green-500 text-white"
-                      : "bg-muted hover:bg-muted/80"
-                      }`}
-                  >
-                    {format}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium">Data Retention</p>
-                <p className="text-xs text-muted-foreground">How long to keep historical data</p>
-              </div>
-              <select
-                value={settings.dataRetention}
-                onChange={(e) => updateSetting("dataRetention", e.target.value)}
-                className="bg-muted border border-border rounded-lg px-3 py-2 text-sm"
-              >
-                <option>30 days</option>
-                <option>90 days</option>
-                <option>1 year</option>
-                <option>Forever</option>
-              </select>
-            </div>
-            <div className="pt-4 border-t border-border flex gap-3">
-              <Button variant="outline" className="flex-1" onClick={handleExport}>
-                {settings.exportFormat === "pdf" ? <FileText className="h-4 w-4 mr-2" /> : <Download className="h-4 w-4 mr-2" />}
-                Export as {settings.exportFormat.toUpperCase()}
-              </Button>
-              <Button
-                variant="destructive"
-                className="flex-1"
-                onClick={() => {
-                  if (confirm("Are you sure you want to delete all data? This cannot be undone.")) {
-                    localStorage.clear();
-                    toast({ title: "🗑️ Data Deleted", description: "All local data has been cleared." });
-                    navigate("/dashboard");
-                  }
-                }}
-              >
-                <Shield className="h-4 w-4 mr-2" />
-                Delete All Data
-              </Button>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Save Button */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="flex justify-end gap-3"
-        >
-          <Button variant="outline" onClick={() => navigate("/dashboard")}>Cancel</Button>
-          <Button onClick={handleSave} disabled={!hasChanges || isSaving} className="bg-primary">
-            {isSaving ? "Saving..." : <><Save className="h-4 w-4 mr-2" />Save Changes</>}
-          </Button>
-        </motion.div>
-      </div>
+      </main>
     </div>
   );
 };

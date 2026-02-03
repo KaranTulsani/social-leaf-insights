@@ -1,14 +1,16 @@
 import { useState } from "react";
-import { Sidebar } from "@/components/layout/Sidebar";
+import { Sidebar, MobileNav } from "@/components/layout/Sidebar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Mic, Play, Pause, Sparkles, Loader2, Volume2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useToast } from "@/components/ui/use-toast";
+import { useAuth } from "@/components/auth/AuthContext";
 
 const VoiceCoach = () => {
   const { toast } = useToast();
+  const { session } = useAuth();
   const [script, setScript] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [results, setResults] = useState<{
@@ -28,8 +30,8 @@ const VoiceCoach = () => {
 
     setIsAnalyzing(true);
     try {
-      // Get token from localStorage
-      const token = localStorage.getItem("access_token");
+      // Get token from session
+      const token = session?.access_token;
 
       const response = await fetch("http://localhost:8000/api/voice-coach/analyze", {
         method: "POST",
@@ -67,7 +69,7 @@ const VoiceCoach = () => {
 
     setLoadingAudio(type);
     try {
-      const token = localStorage.getItem("access_token");
+      const token = session?.access_token;
 
       const response = await fetch("http://localhost:8000/api/voice-coach/speech", {
         method: "POST",
@@ -109,11 +111,15 @@ const VoiceCoach = () => {
 
       <main className="flex-1 overflow-auto">
         <header className="bg-card border-b border-border px-6 py-4 h-[65px] flex items-center">
-          <div className="flex items-center gap-4">
-            <h1 className="font-display text-2xl font-bold text-foreground">AI Voice Coach</h1>
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium">
-              <Sparkles className="h-3 w-3" />
-              Powered by ElevenLabs
+          <div className="flex items-center justify-between w-full">
+            <div className="flex items-center gap-4">
+              <MobileNav />
+              <h1 className="font-display text-2xl font-bold text-foreground">AI Voice Coach</h1>
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium">
+                <Sparkles className="h-3 w-3" />
+                <span className="hidden sm:inline">Powered by ElevenLabs</span>
+                <span className="sm:hidden">ElevenLabs</span>
+              </div>
             </div>
           </div>
         </header>

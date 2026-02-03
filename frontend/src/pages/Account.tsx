@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { User, CreditCard, Shield, Clock, ArrowUpRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/auth/AuthContext";
-import { Sidebar } from "@/components/layout/Sidebar";
+import { Sidebar, MobileNav } from "@/components/layout/Sidebar";
 import { PLAN_DISPLAY_NAMES, PlanType } from "@/lib/planPermissions";
 
 const Account = () => {
@@ -52,20 +52,27 @@ const Account = () => {
   };
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex min-h-screen bg-muted">
       <Sidebar />
 
-      <main className="flex-1 p-8">
+      <main className="flex-1 overflow-auto">
+        {/* Header with MobileNav */}
+        <header className="bg-card border-b border-border px-6 py-4 mb-8">
+          <div className="flex items-center gap-4">
+            <MobileNav />
+            <h1 className="font-display text-2xl font-bold text-foreground">
+              Account & Billing
+            </h1>
+          </div>
+        </header>
+
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="max-w-3xl mx-auto"
+          className="max-w-3xl mx-auto px-6"
         >
-          {/* Header */}
+          {/* Page Description */}
           <div className="mb-8">
-            <h1 className="font-display text-3xl font-bold text-foreground mb-2">
-              Account & Billing
-            </h1>
             <p className="text-muted-foreground">
               Manage your account settings and subscription
             </p>

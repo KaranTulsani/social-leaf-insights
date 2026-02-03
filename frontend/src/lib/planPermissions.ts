@@ -4,20 +4,23 @@
  */
 
 export type PlanType = 'starter' | 'professional' | 'business';
-export type FeatureType = 'voiceCoach' | 'vlm';
+export type FeatureType = 'voiceCoach' | 'vlm' | 'createPost';
 
 export const PLAN_FEATURES: Record<PlanType, Record<FeatureType, boolean>> = {
   starter: {
     voiceCoach: false,
     vlm: false,
+    createPost: false,
   },
   professional: {
     voiceCoach: true,
     vlm: false,
+    createPost: false,
   },
   business: {
     voiceCoach: true,
     vlm: true,
+    createPost: true,
   },
 };
 

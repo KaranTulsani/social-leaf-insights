@@ -86,7 +86,7 @@ export function HeroSection() {
             </div>
 
             {/* Connecting Lines (SVG) */}
-            <svg className="absolute inset-0 w-full h-full z-0 pointer-events-none overflow-visible">
+            <svg className="absolute inset-0 w-full h-full z-0 pointer-events-none overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
               <defs>
                 <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="100%">
                   <stop offset="0%" stopColor="rgba(34, 197, 94, 0.1)" />
@@ -96,37 +96,41 @@ export function HeroSection() {
               </defs>
               {/* Lines to icons */}
               <motion.path
-                d="M50% 50% L20% 25%"
+                d="M50 50 L20 25"
                 stroke="url(#lineGradient)"
-                strokeWidth="2"
+                strokeWidth="0.5"
                 fill="none"
+                vectorEffect="non-scaling-stroke"
                 initial={{ pathLength: 0, opacity: 0 }}
                 animate={{ pathLength: 1, opacity: 1 }}
                 transition={{ duration: 1.5, delay: 0.5 }}
               />
               <motion.path
-                d="M50% 50% L80% 20%"
+                d="M50 50 L80 20"
                 stroke="url(#lineGradient)"
-                strokeWidth="2"
+                strokeWidth="0.5"
                 fill="none"
+                vectorEffect="non-scaling-stroke"
                 initial={{ pathLength: 0, opacity: 0 }}
                 animate={{ pathLength: 1, opacity: 1 }}
                 transition={{ duration: 1.5, delay: 0.6 }}
               />
               <motion.path
-                d="M50% 50% L85% 60%"
+                d="M50 50 L85 60"
                 stroke="url(#lineGradient)"
-                strokeWidth="2"
+                strokeWidth="0.5"
                 fill="none"
+                vectorEffect="non-scaling-stroke"
                 initial={{ pathLength: 0, opacity: 0 }}
                 animate={{ pathLength: 1, opacity: 1 }}
                 transition={{ duration: 1.5, delay: 0.7 }}
               />
               <motion.path
-                d="M50% 50% L25% 70%"
+                d="M50 50 L25 70"
                 stroke="url(#lineGradient)"
-                strokeWidth="2"
+                strokeWidth="0.5"
                 fill="none"
+                vectorEffect="non-scaling-stroke"
                 initial={{ pathLength: 0, opacity: 0 }}
                 animate={{ pathLength: 1, opacity: 1 }}
                 transition={{ duration: 1.5, delay: 0.8 }}

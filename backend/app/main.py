@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 from app.core.config import get_settings
-from app.routers import analytics, platforms, ai, reports, voice_coach, hooks, users
+from app.routers import analytics, platforms, ai, reports, voice_coach, hooks, users, competitors
 from app.routers.oauth import router as oauth_router
 
 
@@ -50,6 +50,7 @@ app.include_router(platforms.router, prefix="/api/platforms", tags=["Platforms"]
 app.include_router(ai.router, prefix="/api/ai", tags=["AI"])
 app.include_router(reports.router, prefix="/api/reports", tags=["Reports"])
 app.include_router(voice_coach.router, prefix="/api/voice-coach", tags=["Voice Coach"])
+app.include_router(competitors.router, prefix="/api/competitors", tags=["Competitor Spy"])
 app.include_router(hooks.router)  # Hook detector routes at /api/hooks/*
 app.include_router(oauth_router)  # OAuth routes at /auth/*
 app.include_router(users.router)  # User profile routes at /api/users/*
@@ -99,18 +100,53 @@ async def get_youtube_channel(channel_id: str):
 # ================== REAL PLATFORM DATA (OAuth Required) ==================
 
 @app.get("/api/real/youtube")
-async def get_real_youtube():
-    """Get real YouTube analytics (requires OAuth connection)."""
+@app.get("/api/real/youtube")
+async def get_real_youtube(handle: str = None):
+    """Get real YouTube analytics (OAuth or Public Handle)."""
+    if handle:
+        from app.services.youtube import YouTubeService
+        service = YouTubeService()
+        # Resolve handle to ID
+        start_char = handle[0]
+        if start_char != "@" and start_char != "U": 
+            handle = "@" + handle # Assume handle if not ID
+            
+        channel_id = await service.resolve_channel_id(handle)
+        if channel_id:
+            stats = await service.get_public_channel_stats(channel_id)
+            # Transform to match "Real Data" format expected by frontend
+            return {
+                "platform": "youtube",
+                "connected": True,
+                "is_public": True,
+                "account": {
+                    "id": stats["id"],
+                    "username": stats["customUrl"],
+                    "name": stats["title"],
+                    "profile_picture": stats["thumbnail"],
+                },
+                "metrics": {
+                    "subscribers": stats["statistics"]["subscribers"],
+                    "views": stats["statistics"]["views"],
+                    "videos": stats["statistics"]["videos"],
+                }
+            }
+
     from app.services.youtube_service import get_youtube_analytics
     data = await get_youtube_analytics()
     if not data:
-        return {"connected": False, "message": "YouTube not connected. Visit /auth/youtube to connect."}
+        return {"connected": False, "message": "YouTube not connected."}
     return data
 
 
 @app.get("/api/real/instagram")
-async def get_real_instagram():
-    """Get real Instagram analytics (requires OAuth connection)."""
+@app.get("/api/real/instagram")
+async def get_real_instagram(handle: str = None):
+    """Get real Instagram analytics (OAuth or Public Simulation)."""
+    if handle:
+        from app.services.instagram_service import get_simulated_stats
+        return await get_simulated_stats(handle)
+
     from app.services.instagram_service import get_instagram_insights
     data = await get_instagram_insights()
     if not data:
@@ -139,8 +175,9 @@ async def get_real_linkedin():
 
 
 @app.get("/api/real/all")
-async def get_all_real_data():
-    """Get all real platform data (uses OAuth tokens if available, otherwise mock)."""
+@app.get("/api/real/all")
+async def get_all_real_data(yt_handle: str = None, ig_handle: str = None):
+    """Get all real platform data (uses OAuth tokens or Public Handles)."""
     from app.services.youtube_service import get_youtube_analytics
     from app.services.instagram_service import get_instagram_insights
     from app.services.twitter_service import get_twitter_analytics
@@ -150,24 +187,27 @@ async def get_all_real_data():
     result = {}
     
     # YouTube
-    if get_tokens("youtube"):
+    if yt_handle:
+        result["youtube"] = await get_real_youtube(handle=yt_handle)
+    elif get_tokens("youtube"):
         result["youtube"] = await get_youtube_analytics()
     else:
         result["youtube"] = {"connected": False}
     
     # Instagram
-    if get_tokens("instagram"):
+    if ig_handle:
+        result["instagram"] = await get_real_instagram(handle=ig_handle)
+    elif get_tokens("instagram"):
         result["instagram"] = await get_instagram_insights()
     else:
         result["instagram"] = {"connected": False}
     
-    # Twitter
+    # Twitter & LinkedIn (No simulator requested yet)
     if get_tokens("twitter"):
         result["twitter"] = await get_twitter_analytics()
     else:
         result["twitter"] = {"connected": False}
     
-    # LinkedIn
     if get_tokens("linkedin"):
         result["linkedin"] = await get_linkedin_analytics()
     else:

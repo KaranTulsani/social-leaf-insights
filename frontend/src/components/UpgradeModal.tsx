@@ -30,6 +30,15 @@ const featureInfo: Record<FeatureType, { name: string; benefits: string[] }> = {
       'Optimize video performance',
     ],
   },
+  createPost: {
+    name: 'AI Post Generator',
+    benefits: [
+      'Generate captions from images',
+      'AI-optimized hashtags',
+      'Call-to-Action suggestions',
+      'Auto-scheduling',
+    ],
+  },
 };
 
 const UpgradeModal = ({ isOpen, onClose, feature, currentPlan }: UpgradeModalProps) => {

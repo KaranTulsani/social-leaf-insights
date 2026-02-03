@@ -158,6 +158,121 @@ async def get_recent_media(limit: int = 10) -> Optional[list]:
             })
         
         return media
+    
+    
+async def get_simulated_stats(username: str) -> dict:
+    """
+    Get stats for a public profile using lightweight scraping first, 
+    falling back to simulation if blocked.
+    """
+    username_clean = username.lower().replace("@", "")
+    
+    # Preset known influencers for demo overrides (optional, can be removed if we want pure scrape)
+    # Keeping them as "Fast Path" for demo reliability if scraping fails
+    known_profiles = {
+        "mrbeast": {
+            "followers": 62500000,
+            "following": 450,
+            "posts": 850,
+            "impressions": 12500000,
+            "reach": 8500000,
+            "profile_views": 450000
+        },
+        "pewdiepie": {
+            "followers": 21000000,
+            "following": 120,
+            "posts": 450,
+            "impressions": 5000000,
+            "reach": 3200000,
+            "profile_views": 120000
+        }
+    }
+
+    # 1. Attempt Real Web Scrape
+    real_data = None
+    try:
+        import re
+        async with httpx.AsyncClient(follow_redirects=True, headers={
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+            "Accept-Language": "en-US,en;q=0.9",
+        }) as client:
+            response = await client.get(f"https://www.instagram.com/{username_clean}/")
+            if response.status_code == 200:
+                html = response.text
+                
+                # Parse og:description meta tag
+                # Format usually: "100K Followers, 50 Following, 100 Posts - See Instagram photos..."
+                match = re.search(r'<meta property="og:description" content="([^"]+)"', html)
+                if match:
+                    content = match.group(1)
+                    parts = content.split(" - ")[0].split(", ")
+                    if len(parts) >= 3:
+                        followers_str = parts[0].replace("Followers", "").strip()
+                        following_str = parts[1].replace("Following", "").strip()
+                        posts_str = parts[2].replace("Posts", "").strip()
+                        
+                        # Helper to parse K/M string to int
+                        def parse_count(s):
+                            s = s.lower().replace(",", "")
+                            if "k" in s: return int(float(s.replace("k", "")) * 1000)
+                            if "m" in s: return int(float(s.replace("m", "")) * 1000000)
+                            return int(s) if s.isdigit() else 0
+
+                        real_metrics = {
+                            "followers": parse_count(followers_str),
+                            "following": parse_count(following_str),
+                            "posts": parse_count(posts_str),
+                            # Estimate other metrics based on followers
+                            "impressions": int(parse_count(followers_str) * 0.2), # Est 20% reach
+                            "reach": int(parse_count(followers_str) * 0.15),
+                            "profile_views": int(parse_count(followers_str) * 0.01)
+                        }
+                        
+                        real_data = {
+                            "platform": "instagram",
+                            "connected": True,
+                            "is_simulated": False,  # REAL DATA!
+                            "account": {
+                                "id": f"real_{username_clean}",
+                                "username": username_clean,
+                                "name": username, 
+                                "bio": "Public Web Profile",
+                                "profile_picture": "https://upload.wikimedia.org/wikipedia/commons/a/a5/Instagram_icon.png", # Hard to extract dynamic expiration URLs
+                            },
+                            "metrics": real_metrics,
+                            "fetched_at": datetime.utcnow().isoformat(),
+                        }
+    except Exception as e:
+        print(f"Scraping failed for {username_clean}: {e}")
+
+    if real_data:
+        return real_data
+
+    # 2. Fallback to Simulation if Scraping blocked/failed
+    base = known_profiles.get(username_clean, {
+        "followers": 15000, 
+        "following": 500, 
+        "posts": 120,
+        "impressions": 2500,
+        "reach": 1800,
+        "profile_views": 450
+    })
+    
+    return {
+        "platform": "instagram",
+        "connected": True,
+        "is_simulated": True,
+        "account": {
+            "id": f"sim_{username_clean}",
+            "username": username_clean,
+            "name": username,
+            "bio": "Simulated Public Profile",
+            "profile_picture": "https://upload.wikimedia.org/wikipedia/commons/a/a5/Instagram_icon.png",
+        },
+        "metrics": base,
+        "fetched_at": datetime.utcnow().isoformat(),
+    }
+
 
 # ================== PUBLISHING (Direct API) ==================
 

@@ -1,11 +1,12 @@
 import { useState, useRef } from "react";
-import { Sidebar } from "@/components/layout/Sidebar";
+import { Sidebar, MobileNav } from "@/components/layout/Sidebar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Zap, Loader2, Sparkles, AlertCircle, CheckCircle2, Play, Timer, Share2, MousePointer2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/components/ui/use-toast";
 import { Progress } from "@/components/ui/progress";
+import { useAuth } from "@/components/auth/AuthContext";
 
 interface HookAnalysis {
   frame_index: number;
@@ -22,6 +23,7 @@ interface HookAnalysis {
 
 const HookDetector = () => {
   const { toast } = useToast();
+  const { session } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -70,7 +72,7 @@ const HookDetector = () => {
     }, 1000);
 
     try {
-      const token = localStorage.getItem("access_token");
+      const token = session?.access_token;
       const formData = new FormData();
       formData.append("video", videoFile);
 
@@ -84,8 +86,22 @@ const HookDetector = () => {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || "Analysis failed");
+        let errorMessage = "Analysis failed";
+        try {
+          const errorData = await response.json();
+          // Handle structured error response (e.g., plan restrictions)
+          if (typeof errorData.detail === "object" && errorData.detail.message) {
+            errorMessage = errorData.detail.message;
+          } else if (typeof errorData.detail === "string") {
+            errorMessage = errorData.detail;
+          } else if (errorData.message) {
+            errorMessage = errorData.message;
+          }
+        } catch {
+          // Response wasn't JSON
+          errorMessage = `Server error (${response.status})`;
+        }
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
@@ -115,10 +131,12 @@ const HookDetector = () => {
       <main className="flex-1 overflow-auto">
         <header className="bg-card border-b border-border px-6 py-4 h-[65px] flex items-center">
           <div className="flex items-center gap-4">
+            <MobileNav />
             <h1 className="font-display text-2xl font-bold text-foreground">Auto Hook Detector</h1>
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium">
               <Zap className="h-3 w-3" />
-              Multimodal AI Hook Analysis
+              <span className="hidden sm:inline">Multimodal AI Hook Analysis</span>
+              <span className="sm:hidden">AI Analysis</span>
             </div>
           </div>
         </header>

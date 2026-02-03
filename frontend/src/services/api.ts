@@ -142,6 +142,18 @@ export const api = {
       headers: { Authorization: `Bearer ${token}` },
     }),
 
+  getReal: (platform: string, ytHandle?: string, igHandle?: string) => {
+    let url = `/api/real/${platform}`;
+    const params = new URLSearchParams();
+    if (ytHandle) params.append('yt_handle', ytHandle);
+    if (igHandle) params.append('ig_handle', igHandle);
+
+    if (params.toString()) {
+      url += `?${params.toString()}`;
+    }
+    return fetchApi<any>(url);
+  },
+
   // AI
   queryAI: (token: string, question: string) =>
     fetchApi<{ answer: string }>('/api/ai/query', {
@@ -197,6 +209,14 @@ export const api = {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify(payload),
+    }),
+
+  // Competitor Spy
+  analyzeCompetitor: (token: string, query: string) =>
+    fetchApi<any>('/api/competitors/analyze', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ query }),
     }),
 };
 

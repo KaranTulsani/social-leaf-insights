@@ -43,6 +43,10 @@ async def analyze_video_hook(
     
     Returns hook analysis with timestamp, reason, and frame image.
     """
+    # Debug logging
+    print(f"[DEBUG] Hook analyze called by user - profile: {profile}")
+    print(f"[DEBUG] Plan: {profile.get('plan')}, Role: {profile.get('role')}")
+    
     # Check plan access - VLM requires Business plan
     assert_feature_access(profile, "vlm")
     

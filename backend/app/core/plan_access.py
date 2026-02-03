@@ -12,14 +12,17 @@ PLAN_FEATURES: Dict[str, Dict[str, bool]] = {
     "starter": {
         "voice_coach": False,
         "vlm": False,
+        "create_post": False,
     },
     "professional": {
         "voice_coach": True,
         "vlm": False,
+        "create_post": False,
     },
     "business": {
         "voice_coach": True,
         "vlm": True,
+        "create_post": True,
     },
 }
 
@@ -36,7 +39,10 @@ def can_access_feature(plan: str, role: str, feature: str) -> bool:
     """
     if role == "developer":
         return True
-    return PLAN_FEATURES.get(plan, {}).get(feature, False)
+    # Normalize plan to lowercase for comparison
+    normalized_plan = (plan or "").lower()
+    print(f"[DEBUG] can_access_feature - plan: '{plan}', normalized: '{normalized_plan}', role: '{role}', feature: '{feature}'")
+    return PLAN_FEATURES.get(normalized_plan, {}).get(feature, False)
 
 
 def assert_feature_access(profile: Dict[str, Any], feature: str) -> None:
@@ -50,13 +56,14 @@ def assert_feature_access(profile: Dict[str, Any], feature: str) -> None:
     Raises:
         HTTPException: 403 if user cannot access the feature
     """
-    plan = profile.get("plan", "starter")
+    plan = (profile.get("plan") or "starter").lower()  # Normalize to lowercase
     role = profile.get("role", "user")
     
     if not can_access_feature(plan, role, feature):
         feature_names = {
             "voice_coach": "AI Voice Coach",
             "vlm": "Hook Detector (VLM)",
+            "create_post": "AI Post Generator",
         }
         feature_display = feature_names.get(feature, feature)
         

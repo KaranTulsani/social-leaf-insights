@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 from app.core.oauth import oauth_settings, OAUTH_URLS, get_oauth_url
+from app.core.config import get_settings
 
 router = APIRouter(prefix="/auth", tags=["OAuth"])
 
@@ -250,10 +251,12 @@ async def linkedin_callback(code: str = Query(...), state: str = Query(...)):
 @router.get("/status")
 async def get_connection_status():
     """Get connection status for all platforms."""
+    settings = get_settings()
     return {
         "youtube": {
             "connected": "youtube" in user_tokens,
             "has_credentials": bool(oauth_settings.YOUTUBE_CLIENT_ID),
+            "api_key_available": bool(settings.youtube_api_key),
         },
         "instagram": {
             "connected": "instagram" in user_tokens,

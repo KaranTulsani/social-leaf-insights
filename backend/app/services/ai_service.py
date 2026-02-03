@@ -7,6 +7,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 import json
 import google.generativeai as genai
+
 from PIL import Image
 import io
 from app.core.config import get_settings
