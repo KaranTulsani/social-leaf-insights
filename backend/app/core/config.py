@@ -23,8 +23,10 @@ class Settings(BaseSettings):
     
     # Social APIs
     youtube_api_key: Optional[str] = ""
+    youtube_access_token: Optional[str] = ""
     instagram_client_id: Optional[str] = ""
     instagram_client_secret: Optional[str] = ""
+    instagram_access_token: Optional[str] = ""
     
     # Voice AI
     elevenlabs_api_key: Optional[str] = ""

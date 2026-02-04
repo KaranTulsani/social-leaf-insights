@@ -47,6 +47,7 @@ import { Sidebar, MobileNav } from "@/components/layout/Sidebar";
 import { useAuth } from "@/components/auth/AuthContext";
 import api from "@/services/api";
 import { generateDashboardPDF } from "@/lib/pdfGenerator";
+import { toast } from "sonner";
 
 const engagementData = [
   { name: "Jan", instagram: 4000, twitter: 2400, linkedin: 1800 },
@@ -214,7 +215,7 @@ const Dashboard = () => {
       totalShares += ig.posts * 8 || 0; // Estimated
 
       if (ig.impressions > 0) {
-        engagementRate += (ig.reach / ig.impressions) * 100;
+        engagementRate += ((ig as any).reach / ig.impressions) * 100;
         dataCount++;
       }
     }
@@ -512,6 +513,46 @@ RECOMMENDATIONS
     URL.revokeObjectURL(url);
   };
 
+  const handlePdfExport = async () => {
+    const toastId = toast.loading('Starting AI Analysis for Report...');
+
+    try {
+      let analysisText = '';
+
+      // Attempt to get AI analysis if logged in
+      if (session?.access_token) {
+        try {
+          const response = await api.getReportAnalysis(session.access_token, unifiedMetrics);
+          analysisText = response.analysis;
+          toast.dismiss(toastId);
+          toast.info('AI Analysis added. Generating PDF...');
+        } catch (err) {
+          console.error("AI Analysis failed", err);
+          toast.dismiss(toastId);
+          toast.warning('Generating PDF without AI analysis (Service Unavailable)');
+        }
+      } else {
+        toast.dismiss(toastId);
+        toast.info('Generating PDF (Login for AI insights)...');
+      }
+
+      const charts = [
+        { id: "engagement-chart", title: "Engagement Overview" },
+        { id: "content-type-chart", title: "Content Performance" }
+      ];
+
+      await generateDashboardPDF("Social Leaf Analytics Report", unifiedMetrics, charts, analysisText);
+
+      // Cleanup running toasts
+      toast.dismiss(toastId);
+
+    } catch (error) {
+      console.error(error);
+      toast.dismiss(toastId);
+      toast.error('Export failed');
+    }
+  };
+
   const { session } = useAuth();
 
   const handleAiQuery = async (e: React.FormEvent) => {
@@ -590,7 +631,7 @@ RECOMMENDATIONS
             </div>
 
             <div className="flex items-center gap-3">
-              <Button variant="outline" size="sm" onClick={() => generateDashboardPDF('dashboard-content', 'Social Leaf Analytics Report')}>
+              <Button variant="outline" size="sm" onClick={handlePdfExport}>
                 <Download className="h-4 w-4 mr-2" />
                 PDF
               </Button>
@@ -698,6 +739,7 @@ RECOMMENDATIONS
           <div className="grid lg:grid-cols-3 gap-6">
             {/* Engagement Chart */}
             <motion.div
+              id="engagement-chart"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.4 }}
@@ -764,6 +806,7 @@ RECOMMENDATIONS
 
             {/* Content Type Chart */}
             <motion.div
+              id="content-type-chart"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.5 }}
