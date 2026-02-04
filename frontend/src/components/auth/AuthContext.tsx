@@ -11,7 +11,7 @@ export interface UserProfile {
   plan: 'starter' | 'professional' | 'business' | null;
   plan_status: 'active' | 'trial' | 'expired' | 'cancelled' | null;
   trial_ends_at: string | null;
-  role: 'user' | 'developer';
+  role: 'user' | 'developer' | 'admin';
 }
 
 interface AuthContextType {

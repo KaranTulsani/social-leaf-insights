@@ -23,6 +23,9 @@ import ChoosePlan from "./pages/ChoosePlan";
 import Payment from "./pages/Payment";
 import Account from "./pages/Account";
 import CompetitorSpy from "./pages/CompetitorSpy";
+import AdminAnalytics from "./pages/admin/AdminAnalytics";
+import AdminSettings from "./pages/admin/AdminSettings";
+import AdminUsers from "./pages/admin/AdminUsers";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import ErrorBoundary from "@/components/ui/ErrorBoundary";
@@ -143,6 +146,32 @@ const App = () => (
                   element={
                     <ProtectedRoute>
                       <CompetitorSpy />
+                    </ProtectedRoute>
+                  }
+                />
+
+                {/* Admin Routes */}
+                <Route
+                  path="/admin/analytics"
+                  element={
+                    <ProtectedRoute>
+                      <AdminAnalytics />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/admin/settings"
+                  element={
+                    <ProtectedRoute>
+                      <AdminSettings />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/admin/users"
+                  element={
+                    <ProtectedRoute>
+                      <AdminUsers />
                     </ProtectedRoute>
                   }
                 />

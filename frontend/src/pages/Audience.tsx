@@ -48,13 +48,21 @@ const Audience = () => {
       return null;
     }
 
-    const videos = realYoutubeData.recent_videos;
-    const channel = realYoutubeData.channel;
+    const videos = realYoutubeData?.recent_videos || [];
+    const channel = realYoutubeData?.channel;
 
     // Simulate hourly activity based on video upload times and engagement
-    const totalLikes = videos.reduce((sum: number, v: any) => sum + (v.statistics?.likes || 0), 0);
-    const totalComments = videos.reduce((sum: number, v: any) => sum + (v.statistics?.comments || 0), 0);
-    const totalViews = videos.reduce((sum: number, v: any) => sum + (v.statistics?.views || 0), 0);
+    let totalLikes = videos.reduce((sum: number, v: any) => sum + (v.statistics?.likes || 0), 0);
+    let totalComments = videos.reduce((sum: number, v: any) => sum + (v.statistics?.comments || 0), 0);
+    let totalViews = videos.reduce((sum: number, v: any) => sum + (v.statistics?.views || 0), 0);
+
+    // Add Instagram Data (Real or Simulated Fallback)
+    if (connections.instagram?.connected && realInstagramData?.metrics) {
+      const ig = realInstagramData.metrics;
+      totalViews += ig.impressions || 0;
+      totalLikes += (ig as any).like_count || (ig.posts * 8) || 0;
+      totalComments += (ig as any).comments_count || (ig.posts * 15) || 0;
+    }
 
     // Calculate engagement breakdown
     const likesPercent = totalLikes + totalComments > 0 ? Math.round(totalLikes / (totalLikes + totalComments) * 100) : 50;
@@ -74,7 +82,7 @@ const Audience = () => {
 
     const contentPreferences = sortedVideos.slice(0, 5).map((v: any, i: number) => ({
       type: v.title?.substring(0, 40) + (v.title?.length > 40 ? "..." : "") || `Video ${i + 1}`,
-      engagement: ((((v.statistics?.likes || 0) + (v.statistics?.comments || 0)) / Math.max(v.statistics?.views || 1, 1)) * 100).toFixed(1),
+      engagement: ((((v.statistics?.likes || 0) + (v.statistics?.comments || 0)) / Math.max(v.statistics?.views || 1, 1)) * 100).toFixed(2),
       preference: Math.round(85 - i * 10),
     }));
 
@@ -86,8 +94,8 @@ const Audience = () => {
       totalComments,
       engagementBreakdown,
       contentPreferences,
-      saveRate: ((totalLikes * 0.1) / Math.max(totalViews, 1) * 100).toFixed(1),
-      shareRate: ((totalLikes * 0.05) / Math.max(totalViews, 1) * 100).toFixed(1),
+      saveRate: ((totalLikes * 0.1) / Math.max(totalViews, 1) * 100).toFixed(2),
+      shareRate: ((totalLikes * 0.05) / Math.max(totalViews, 1) * 100).toFixed(2),
     };
   };
 

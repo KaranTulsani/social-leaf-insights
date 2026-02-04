@@ -25,7 +25,10 @@ import {
   Instagram,
   Twitter,
   Linkedin,
-  Youtube
+  Youtube,
+  Megaphone,
+  ArrowRight,
+  RefreshCw
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -109,8 +112,9 @@ const Dashboard = () => {
   const [showTomorrowTip, setShowTomorrowTip] = useState(false);
   const [showIdeas, setShowIdeas] = useState(false);
 
-  const [userName, setUserName] = useState("John Doe");
-  const [userInitials, setUserInitials] = useState("JD");
+  const [userName, setUserName] = useState("User");
+  const [userInitials, setUserInitials] = useState("U");
+  const { profile } = useAuth();
 
   // Dashboard data from API
   const [dashboardData, setDashboardData] = useState<{
@@ -125,7 +129,11 @@ const Dashboard = () => {
     instagramData: realInstagramData,
     connections,
     isLoading: contextLoading,
-    formatNumber: contextFormatNumber
+    formatNumber,
+    unifiedMetrics,
+    engagementTrends,
+    isYoutubeLoading,
+    isInstagramLoading
   } = useSocialData();
 
   const isLoading = contextLoading;
@@ -138,21 +146,38 @@ const Dashboard = () => {
       return () => clearTimeout(timer);
     }
 
-    // Get user data
-    const userStr = localStorage.getItem("currentUser");
-    if (userStr) {
-      const user = JSON.parse(userStr);
-      setUserName(user.name || "John Doe");
+    if (profile?.role === 'admin') {
+      navigate('/admin/analytics');
+      return;
+    }
 
-      // Generate initials
-      if (user.name) {
-        const initials = user.name
-          .split(" ")
-          .map((n: string) => n[0])
-          .join("")
-          .toUpperCase()
-          .substring(0, 2);
-        setUserInitials(initials);
+
+    // Get user data from profile (source of truth) or fallback to localStorage
+    if (profile?.name) {
+      setUserName(profile.name);
+      const initials = profile.name
+        .split(" ")
+        .map((n: string) => n[0])
+        .join("")
+        .toUpperCase()
+        .substring(0, 2);
+      setUserInitials(initials);
+    } else {
+      const userStr = localStorage.getItem("currentUser");
+      if (userStr) {
+        const user = JSON.parse(userStr);
+        setUserName(user.name || "John Doe");
+
+        // Generate initials
+        if (user.name) {
+          const initials = user.name
+            .split(" ")
+            .map((n: string) => n[0])
+            .join("")
+            .toUpperCase()
+            .substring(0, 2);
+          setUserInitials(initials);
+        }
       }
     }
 
@@ -169,85 +194,9 @@ const Dashboard = () => {
       }
     };
     fetchDemoInsights();
-  }, []);
+  }, [profile, navigate]);
 
-  // Helper to format large numbers
-  const formatNumber = (num: number): string => {
-    if (num >= 1000000000) return (num / 1000000000).toFixed(1) + "B";
-    if (num >= 1000000) return (num / 1000000).toFixed(1) + "M";
-    if (num >= 1000) return (num / 1000).toFixed(1) + "K";
-    return num.toString();
-  };
-
-  // Calculate unified metrics from real data
-  const getUnifiedMetrics = () => {
-    let totalImpressions = 0;
-    let totalEngagement = 0;
-    let totalComments = 0;
-    let totalShares = 0;
-    let engagementRate = 0;
-    let dataCount = 0;
-
-    // YouTube metrics
-    if (realYoutubeData?.channel && realYoutubeData?.recent_videos) {
-      const channel = realYoutubeData.channel;
-      const videos = realYoutubeData.recent_videos || [];
-
-      const ytViews = videos.reduce((sum: number, v: any) => sum + (v.statistics?.views || 0), 0);
-      const ytLikes = videos.reduce((sum: number, v: any) => sum + (v.statistics?.likes || 0), 0);
-      const ytComments = videos.reduce((sum: number, v: any) => sum + (v.statistics?.comments || 0), 0);
-
-      totalImpressions += ytViews;
-      totalComments += ytComments;
-      totalShares += ytLikes; // Using likes as a proxy for shares
-
-      if (ytViews > 0) {
-        engagementRate += ((ytLikes + ytComments) / ytViews) * 100;
-        dataCount++;
-      }
-    }
-
-    // Instagram metrics
-    if (realInstagramData?.metrics) {
-      const ig = realInstagramData.metrics;
-      totalImpressions += ig.impressions || 0;
-      totalComments += ig.posts * 15 || 0; // Estimated
-      totalShares += ig.posts * 8 || 0; // Estimated
-
-      if (ig.impressions > 0) {
-        engagementRate += ((ig as any).reach / ig.impressions) * 100;
-        dataCount++;
-      }
-    }
-
-    // Average engagement rate if we have data
-    if (dataCount > 0) {
-      engagementRate = engagementRate / dataCount;
-    } else {
-      engagementRate = dashboardData?.overview?.engagement_rate || 5.2;
-    }
-
-    // Fallback to dashboard data if no real data
-    if (totalImpressions === 0) {
-      totalImpressions = dashboardData?.overview?.total_impressions || 12500000;
-    }
-    if (totalComments === 0) {
-      totalComments = dashboardData?.overview?.total_comments || 1200;
-    }
-    if (totalShares === 0) {
-      totalShares = dashboardData?.overview?.total_shares || 500;
-    }
-
-    return {
-      totalImpressions,
-      engagementRate: engagementRate.toFixed(2),
-      totalComments,
-      totalShares,
-      growthRate: dashboardData?.overview?.growth_rate || 12.5,
-    };
-  };
-
-  const unifiedMetrics = getUnifiedMetrics();
+  // Platform list
 
   // Get list of connected platforms
   const getConnectedPlatforms = () => {
@@ -295,30 +244,32 @@ const Dashboard = () => {
   const getDynamicEngagementData = () => {
     const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul"];
 
-    // If we have real YouTube video data, use it
-    if (realYoutubeData?.recent_videos) {
-      const videos = realYoutubeData.recent_videos;
+    // If we have real YouTube video data and Instagram analytics, use them
+    if (realYoutubeData?.recent_videos || realInstagramData?.analytics) {
+      const videos = realYoutubeData?.recent_videos || [];
+      const igTrend = realInstagramData?.analytics || [];
 
-      // Create data points from recent videos
-      return videos.slice(0, 7).map((video: any, i: number) => {
-        const views = video.statistics?.views || 0;
-        const likes = video.statistics?.likes || 0;
+      const maxLen = Math.max(videos.length, igTrend.length, 7);
+      const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-        const dataPoint: any = { name: `Vid ${i + 1}` };
+      return Array.from({ length: Math.min(maxLen, 7) }).map((_, i) => {
+        const dataPoint: any = { name: days[i] || `Day ${i + 1}` };
 
-        if (connections.youtube?.connected || realYoutubeData) {
-          dataPoint.youtube = views / 1000; // Scale down for chart
+        if (videos[i]) {
+          dataPoint.youtube = (videos[i].statistics?.views || 0) / 1000;
+        } else if (realYoutubeData) {
+          dataPoint.youtube = Math.random() * 5000;
         }
-        if (connections.instagram?.connected || realInstagramData) {
-          // Estimate Instagram based on ratio
-          dataPoint.instagram = (realInstagramData?.metrics?.impressions || views * 0.3) / 1000;
+
+        if (igTrend[i]) {
+          dataPoint.instagram = (igTrend[i].reach || 0) / 1000;
+        } else if (realInstagramData) {
+          dataPoint.instagram = Math.random() * 4000;
         }
-        if (connections.twitter?.connected) {
-          dataPoint.twitter = views * 0.2 / 1000;
-        }
-        if (connections.linkedin?.connected) {
-          dataPoint.linkedin = views * 0.1 / 1000;
-        }
+
+        // Mock others if connected
+        if (connections.twitter?.connected) dataPoint.twitter = 1000 + Math.random() * 2000;
+        if (connections.linkedin?.connected) dataPoint.linkedin = 500 + Math.random() * 1000;
 
         return dataPoint;
       });
@@ -346,7 +297,7 @@ const Dashboard = () => {
     });
   };
 
-  const dynamicEngagementData = getDynamicEngagementData();
+  const dynamicEngagementData = engagementTrends;
 
   // Generate dynamic content type data
   const getDynamicContentTypeData = () => {
@@ -517,13 +468,13 @@ RECOMMENDATIONS
     const toastId = toast.loading('Starting AI Analysis for Report...');
 
     try {
-      let analysisText = '';
+      let analysisData: any = undefined;
 
       // Attempt to get AI analysis if logged in
       if (session?.access_token) {
         try {
           const response = await api.getReportAnalysis(session.access_token, unifiedMetrics);
-          analysisText = response.analysis;
+          analysisData = response;
           toast.dismiss(toastId);
           toast.info('AI Analysis added. Generating PDF...');
         } catch (err) {
@@ -541,7 +492,7 @@ RECOMMENDATIONS
         { id: "content-type-chart", title: "Content Performance" }
       ];
 
-      await generateDashboardPDF("Social Leaf Analytics Report", unifiedMetrics, charts, analysisText);
+      await generateDashboardPDF("Social Leaf Analytics Report", unifiedMetrics, charts, analysisData);
 
       // Cleanup running toasts
       toast.dismiss(toastId);
@@ -608,12 +559,62 @@ RECOMMENDATIONS
     }
   };
 
+
+  // System Status State
+  const [systemStatus, setSystemStatus] = useState({
+    announcement: "",
+    announcement_active: false,
+    maintenance_mode: false,
+    maintenance_start: "",
+    maintenance_end: ""
+  });
+
+  useEffect(() => {
+    fetchSystemStatus();
+  }, []);
+
+  const fetchSystemStatus = async () => {
+    try {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const res = await fetch(`${API_URL}/api/system/status`);
+      if (res.ok) {
+        setSystemStatus(await res.json());
+      }
+    } catch (e) {
+      console.error("Failed to fetch system status");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-muted flex">
       <Sidebar />
 
       {/* Main Content */}
       <main className="flex-1 overflow-auto">
+        {/* System Announcement Banner */}
+        {/* System Announcement Floating Card */}
+        {systemStatus.announcement_active && systemStatus.announcement && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ type: "spring", stiffness: 300, damping: 25 }}
+            className="fixed bottom-6 right-6 z-50 max-w-sm w-full bg-indigo-600 text-white p-4 rounded-xl shadow-2xl flex items-start gap-4 border border-indigo-500/50 backdrop-blur-sm"
+          >
+            <div className="p-2 bg-white/20 rounded-lg shrink-0">
+              <Megaphone className="h-5 w-5" />
+            </div>
+            <div className="flex-1 pt-0.5">
+              <h4 className="font-semibold text-sm mb-1">System Update</h4>
+              <p className="text-sm text-indigo-50 leading-relaxed mb-1">{systemStatus.announcement}</p>
+              {systemStatus.maintenance_start && (
+                <p className="text-[10px] text-indigo-200 font-medium">
+                  Maintenance: {new Date(systemStatus.maintenance_start).toLocaleString()} - {new Date(systemStatus.maintenance_end).toLocaleString()}
+                </p>
+              )}
+            </div>
+          </motion.div>
+        )}
+
         {/* Header */}
         <header className="bg-card border-b border-border px-6 py-4 h-[65px] flex items-center">
           <div className="flex items-center justify-between w-full">
@@ -645,46 +646,179 @@ RECOMMENDATIONS
 
         {/* Dashboard Content */}
         <div id="dashboard-content" className="p-6 space-y-6">
-          {/* Connected Channel Banner */}
-          {realYoutubeData?.channel && (
+          {/* Welcome Message */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
             <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-gradient-to-r from-red-500/10 via-red-500/5 to-transparent rounded-xl p-4 border border-red-500/20 flex items-center gap-4"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
             >
-              <img
-                src={realYoutubeData.channel.thumbnail}
-                alt={realYoutubeData.channel.title}
-                className="h-12 w-12 rounded-full border-2 border-red-500/30"
-              />
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <Youtube className="h-5 w-5 text-red-500" />
-                  <h3 className="font-semibold">{realYoutubeData.channel.title}</h3>
-                  <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-green-500/10 text-green-500 text-xs font-medium">
-                    <span className="relative flex h-1.5 w-1.5">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-green-500"></span>
-                    </span>
-                    Live Data
+              <h2 className="text-3xl font-display font-bold text-foreground line-clamp-1">
+                Welcome back, {userName.split(' ')[0]}! 👋
+              </h2>
+              <p className="text-muted-foreground">
+                Here's what's happening across your connected platforms today.
+              </p>
+            </motion.div>
+
+            {/* Quick Refresh Button for Unified Data */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-fit"
+              onClick={() => window.location.reload()}
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh Data
+            </Button>
+          </div>
+
+          {/* Unified Account Banner & Get Started */}
+          <div className="flex flex-col gap-4">
+            {/* NO ACCOUNTS CONNECTED BANNER */}
+            {!connections.youtube?.connected && !connections.instagram?.connected && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-primary/5 rounded-2xl p-8 border border-primary/20 flex flex-col items-center text-center gap-4"
+              >
+                <div className="h-16 w-16 rounded-2xl bg-primary/20 flex items-center justify-center">
+                  <Sparkles className="h-8 w-8 text-primary" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold mb-2">Start Your Unified Dashboard</h3>
+                  <p className="text-muted-foreground max-w-sm mx-auto">
+                    Connect your YouTube and Instagram accounts to see real-time engagement and AI growth tips.
+                  </p>
+                </div>
+                <Button variant="hero" onClick={() => setShowConnectModal(true)}>
+                  Connect My Accounts
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </motion.div>
+            )}
+
+            {/* Unified Account Summary Banner (If connected) */}
+            {(connections.youtube?.connected || connections.instagram?.connected) && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-card rounded-2xl p-6 border border-border flex flex-wrap items-center justify-between gap-6 shadow-sm"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="flex -space-x-3">
+                    {connections.youtube?.connected && (
+                      <div className="h-10 w-10 rounded-full bg-red-500 border-2 border-card flex items-center justify-center z-20">
+                        <Youtube className="h-5 w-5 text-white" />
+                      </div>
+                    )}
+                    {connections.instagram?.connected && (
+                      <div className="h-10 w-10 rounded-full bg-pink-500 border-2 border-card flex items-center justify-center z-10">
+                        <Instagram className="h-5 w-5 text-white" />
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-semibold text-lg">Unified Performance</h3>
+                      {(isYoutubeLoading || isInstagramLoading) && (
+                        <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-500 text-[10px] font-bold animate-pulse">
+                          <RefreshCw className="h-2.5 w-2.5 animate-spin" />
+                          SYNCING
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      {Object.values(connections).filter(c => c?.connected).length} platforms connected
+                    </p>
                   </div>
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  {formatNumber(realYoutubeData.channel.statistics?.subscribers || 0)} subscribers •
-                  {formatNumber(realYoutubeData.channel.statistics?.views || 0)} total views •
-                  {realYoutubeData.channel.statistics?.videos || 0} videos
-                </p>
-              </div>
-              <a
-                href={`https://youtube.com/${realYoutubeData.channel.customUrl}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-red-500 hover:text-red-400 font-medium"
+
+                <div className="flex gap-8">
+                  <div className="hidden sm:block">
+                    <p className="text-xs text-muted-foreground uppercase font-semibold">Avg. Engagement</p>
+                    <p className="text-xl font-bold text-primary">{unifiedMetrics.engagementRate}%</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground uppercase font-semibold">Total Reach</p>
+                    <p className="text-xl font-bold">{formatNumber(unifiedMetrics.totalImpressions)}</p>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Platform Specific Banners Row */}
+            {/* YouTube Banner */}
+            {realYoutubeData?.channel && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-gradient-to-r from-red-500/10 via-red-500/5 to-transparent rounded-xl p-4 border border-red-500/20 flex items-center gap-4"
               >
-                View Channel →
-              </a>
-            </motion.div>
-          )}
+                <img
+                  src={realYoutubeData.channel.thumbnail}
+                  alt={realYoutubeData.channel.title}
+                  className="h-12 w-12 rounded-full border-2 border-red-500/30"
+                />
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <Youtube className="h-5 w-5 text-red-500" />
+                    <h3 className="font-semibold">{realYoutubeData.channel.title}</h3>
+                    <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-green-500/10 text-green-500 text-xs font-medium">
+                      <span className="relative flex h-1.5 w-1.5">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-green-500"></span>
+                      </span>
+                      Live Data
+                    </div>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {formatNumber(realYoutubeData.channel.statistics?.subscribers || 0)} subscribers •
+                    {formatNumber(realYoutubeData.channel.statistics?.views || 0)} total views •
+                    {realYoutubeData.channel.statistics?.videos || 0} videos
+                  </p>
+                </div>
+                <a
+                  href={`https://youtube.com/${realYoutubeData.channel.customUrl}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-red-500 hover:text-red-400 font-medium"
+                >
+                </a>
+              </motion.div>
+            )}
+            {/* Instagram Banner */}
+            {connections.instagram?.connected && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-gradient-to-r from-pink-500/10 via-purple-500/5 to-transparent rounded-xl p-4 border border-pink-500/20 flex items-center gap-4"
+              >
+                <div className="h-12 w-12 rounded-full border-2 border-pink-500/30 bg-gradient-to-br from-pink-500 via-purple-500 to-orange-400 flex items-center justify-center">
+                  <Instagram className="h-6 w-6 text-white" />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <Instagram className="h-5 w-5 text-pink-500" />
+                    <h3 className="font-semibold">@{(connections.instagram.publicHandle || realInstagramData?.profile?.username || "instagram_user").replace(/^@+/, '')}</h3>
+                    <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-green-500/10 text-green-500 text-xs font-medium">
+                      <span className="relative flex h-1.5 w-1.5">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-green-500"></span>
+                      </span>
+                      {realInstagramData ? "Live Data" : "Connected"}
+                    </div>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {realInstagramData?.profile?.followers ? `${formatNumber(realInstagramData.profile.followers)} followers • ` : ""}
+                    Managing audience and engagement strategies
+                  </p>
+                </div>
+                <Link to="/analytics" className="text-sm text-pink-500 hover:text-pink-400 font-medium">
+                  Detailed Insights →
+                </Link>
+              </motion.div>
+            )}
+          </div>
 
           {/* Stats Row */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

@@ -42,7 +42,7 @@ const benefits = [
 
 const stats = [
   { value: "381%", label: "Average increase in engagement" },
-  { value: "$476K", label: "Average EMV per campaign" },
+  { value: "₹476K", label: "Average EMV per campaign" },
   { value: "1.9M", label: "Average views per campaign" },
 ];
 
@@ -147,7 +147,7 @@ const BrandCampaigns = () => {
                   <div className="grid grid-cols-2 gap-6 mb-8">
                     <div className="p-6 rounded-2xl bg-slate-50">
                       <p className="text-sm font-medium text-slate-500 mb-1">EMV</p>
-                      <p className="text-2xl font-bold text-slate-900">$476,697</p>
+                      <p className="text-2xl font-bold text-slate-900">₹476,697</p>
                     </div>
                     <div className="p-6 rounded-2xl bg-slate-50">
                       <p className="text-sm font-medium text-slate-500 mb-1">Views</p>

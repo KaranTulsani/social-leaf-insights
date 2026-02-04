@@ -31,7 +31,7 @@ const plans = [
   {
     id: 'professional' as PlanType,
     name: 'Professional',
-    price: 19,
+    price: 399,
     period: '/month',
     description: 'Best for creators handling multiple platforms',
     icon: Rocket,
@@ -52,7 +52,7 @@ const plans = [
   {
     id: 'business' as PlanType,
     name: 'Business',
-    price: 49,
+    price: 799,
     period: '/month',
     description: 'Built for teams and brand campaigns',
     icon: Crown,
@@ -175,7 +175,7 @@ const ChoosePlan = () => {
               <div className="mb-4">
                 <h3 className="text-2xl font-bold">{plan.name}</h3>
                 <div className="flex items-baseline gap-1 mt-2">
-                  <span className="text-4xl font-bold">${plan.price}</span>
+                  <span className="text-4xl font-bold">₹{plan.price}</span>
                   <span className="text-white/80">{plan.period}</span>
                 </div>
                 <p className="text-sm text-white/80 mt-2">{plan.description}</p>
