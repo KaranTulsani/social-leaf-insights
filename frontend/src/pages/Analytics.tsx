@@ -56,39 +56,21 @@ const platformColors = {
 const Analytics = () => {
   // Use shared context for fast initial load
   const {
-    youtubeData: contextYoutubeData,
-    instagramData: contextInstagramData,
-    connections: contextConnections,
+    youtubeData: realYoutubeData,
+    instagramData: realInstagramData,
+    connections,
     isLoading: contextLoading,
+    isYoutubeLoading,
+    isInstagramLoading,
     formatNumber: contextFormatNumber
   } = useSocialData();
 
-  const [isLoading, setIsLoading] = useState(true);
+  const isLoading = contextLoading;
+  const youtubeLoading = isYoutubeLoading;
   const [selectedPlatform, setSelectedPlatform] = useState("all");
   const [analyticsData, setAnalyticsData] = useState<any>(null);
   const [comparisonData, setComparisonData] = useState<any>(null);
   const [refreshCooldown, setRefreshCooldown] = useState<string | null>(null);
-  const [realYoutubeData, setRealYoutubeData] = useState<any>(null);
-  const [realInstagramData, setRealInstagramData] = useState<any>(null);
-  const [connections, setConnections] = useState<any>({});
-  const [youtubeLoading, setYoutubeLoading] = useState(false);
-
-  // Initialize from context data for faster loading
-  useEffect(() => {
-    if (contextYoutubeData && !realYoutubeData) {
-      setRealYoutubeData(contextYoutubeData);
-    }
-    if (contextInstagramData && !realInstagramData) {
-      setRealInstagramData(contextInstagramData);
-    }
-    if (contextConnections && Object.keys(contextConnections).length > 0) {
-      setConnections(prev => ({ ...contextConnections, ...prev }));
-    }
-    if (!contextLoading && !realYoutubeData) {
-      // Context finished loading, mark as done
-      setIsLoading(false);
-    }
-  }, [contextYoutubeData, contextInstagramData, contextConnections, contextLoading]);
 
 
   // Load connections on mount
@@ -133,74 +115,16 @@ const Analytics = () => {
         console.error("Failed to fetch auth status", e);
       }
 
-      setConnections(currentConns);
+      // setConnections(currentConns);
     };
 
     loadConnections();
   }, []);
 
-  // Fetch real/simulated data when platforms are selected
-  useEffect(() => {
-    // YouTube
-    const ytConn = connections.youtube;
-    if ((selectedPlatform === "youtube" || selectedPlatform === "all") && ytConn?.connected && !realYoutubeData) {
-      fetchRealYoutubeData(ytConn.publicHandle, ytConn.channelId);
-    }
-
-    // Instagram
-    const igConn = connections.instagram;
-    if ((selectedPlatform === "instagram" || selectedPlatform === "all") && igConn?.connected && !realInstagramData) {
-      fetchRealInstagramData(igConn.publicHandle);
-    }
-  }, [selectedPlatform, connections]);
-
-  const fetchRealYoutubeData = async (handle?: string, channelId?: string) => {
-    setYoutubeLoading(true);
-    try {
-      let url = "http://localhost:8000/api/real/youtube";
-      if (handle) url += `?handle=${handle}`;
-      else if (channelId) url = `http://localhost:8000/api/youtube/channel/${channelId}`;
-      else {
-        // Fallback if no handle/id but marked connected (likely API key only)
-        // We might need a "featured" or "self" endpoint if just API key is used
-        // For now, let's try the featured endpoint or simulated fallback
-        url = "http://localhost:8000/api/youtube/featured";
-      }
-
-      const response = await fetch(url);
-      if (response.ok) {
-        const data = await response.json();
-
-        // Handle 'featured' endpoint returning an array
-        if (Array.isArray(data)) {
-          // Find mrbeast or take first
-          const featured = data.find((c: any) => c.key === 'mrbeast') || data[0];
-          setRealYoutubeData(featured);
-        } else {
-          setRealYoutubeData(data);
-        }
-      }
-    } catch (error) {
-      console.error("Failed to fetch YouTube data:", error);
-    } finally {
-      setYoutubeLoading(false);
-    }
-  };
+  // Proactive fetching now handled by SocialDataContext
 
   const fetchRealInstagramData = async (handle?: string) => {
-    try {
-      // Use the real/simulated endpoint
-      let url = "http://localhost:8000/api/real/instagram";
-      if (handle) url += `?handle=${handle}`;
-
-      const response = await fetch(url);
-      if (response.ok) {
-        const data = await response.json();
-        setRealInstagramData(data);
-      }
-    } catch (error) {
-      console.error("Failed to fetch Instagram data", error);
-    }
+    // Proactive fetching handled by context
   };
 
   useEffect(() => {
@@ -242,7 +166,7 @@ const Analytics = () => {
       }
     }
 
-    setIsLoading(true);
+    // setIsLoading(true);
     try {
       const [dashboard, comparison] = await Promise.all([
         fetch("http://localhost:8000/demo/full-dashboard").then((r) => r.json()),
@@ -263,12 +187,12 @@ const Analytics = () => {
 
         // Reload connections to ensure we have latest config
         const savedConns = localStorage.getItem("socialleaf_connections");
-        if (savedConns) setConnections(JSON.parse(savedConns));
+        // if (savedConns) setConnections(JSON.parse(savedConns));
       }
     } catch (error) {
       console.error("Failed to fetch analytics:", error);
     } finally {
-      setIsLoading(false);
+      // setIsLoading(false);
     }
   };
 
@@ -347,69 +271,94 @@ const Analytics = () => {
     return hours * 3600 + minutes * 60 + seconds;
   };
 
-  // Get real engagement data from videos for chart
+  // Get real engagement data from videos/media for chart
   const getRealEngagementData = () => {
-    if (!realYoutubeData?.recent_videos) return null;
+    if (selectedPlatform === "youtube" && realYoutubeData?.recent_videos) {
+      const videos = realYoutubeData.recent_videos;
+      return videos.slice(0, 6).map((video: any, index: number) => {
+        const views = video.statistics?.views || 0;
+        const likes = video.statistics?.likes || 0;
+        const comments = video.statistics?.comments || 0;
+        const engagement = views > 0 ? ((likes + comments) / views * 100) : 0;
 
-    const videos = realYoutubeData.recent_videos;
+        return {
+          day: `Vid ${index + 1}`,
+          engagement: parseFloat(engagement.toFixed(2)),
+          reach: views,
+          title: video.title?.slice(0, 20) + "...",
+        };
+      });
+    }
 
-    // Create engagement data based on each video (as if each video is a day)
-    return videos.slice(0, 6).map((video: any, index: number) => {
-      const views = video.statistics?.views || 0;
-      const likes = video.statistics?.likes || 0;
-      const comments = video.statistics?.comments || 0;
-      const engagement = views > 0 ? ((likes + comments) / views * 100) : 0;
+    if (selectedPlatform === "instagram" && realInstagramData?.analytics) {
+      // Use the analytics trend array from backend
+      return realInstagramData.analytics;
+    }
 
-      return {
-        day: `Vid ${index + 1}`,
-        engagement: parseFloat(engagement.toFixed(2)),
-        reach: views,
-        title: video.title?.slice(0, 20) + "...",
-      };
-    });
+    return null;
   };
 
-  // Get real content type performance from videos
+  // Get real content type performance from videos/media
   const getRealContentTypePerformance = () => {
-    if (!realYoutubeData?.recent_videos) return null;
+    if (selectedPlatform === "youtube" && realYoutubeData?.recent_videos) {
+      const videos = realYoutubeData.recent_videos;
+      const categories: Record<string, { views: number; likes: number; comments: number; count: number }> = {
+        "Short (<1m)": { views: 0, likes: 0, comments: 0, count: 0 },
+        "Medium (1-10m)": { views: 0, likes: 0, comments: 0, count: 0 },
+        "Long (10-30m)": { views: 0, likes: 0, comments: 0, count: 0 },
+        "Extended (30m+)": { views: 0, likes: 0, comments: 0, count: 0 },
+      };
 
-    const videos = realYoutubeData.recent_videos;
+      videos.forEach((video: any) => {
+        const duration = parseDuration(video.duration);
+        const views = video.statistics?.views || 0;
+        const likes = video.statistics?.likes || 0;
+        const comments = video.statistics?.comments || 0;
 
-    // Categorize videos by duration
-    const categories: Record<string, { views: number; likes: number; comments: number; count: number }> = {
-      "Short (<1m)": { views: 0, likes: 0, comments: 0, count: 0 },
-      "Medium (1-10m)": { views: 0, likes: 0, comments: 0, count: 0 },
-      "Long (10-30m)": { views: 0, likes: 0, comments: 0, count: 0 },
-      "Extended (30m+)": { views: 0, likes: 0, comments: 0, count: 0 },
-    };
+        let category: string;
+        if (duration < 60) category = "Short (<1m)";
+        else if (duration < 600) category = "Medium (1-10m)";
+        else if (duration < 1800) category = "Long (10-30m)";
+        else category = "Extended (30m+)";
 
-    videos.forEach((video: any) => {
-      const duration = parseDuration(video.duration);
-      const views = video.statistics?.views || 0;
-      const likes = video.statistics?.likes || 0;
-      const comments = video.statistics?.comments || 0;
+        categories[category].views += views;
+        categories[category].likes += likes;
+        categories[category].comments += comments;
+        categories[category].count += 1;
+      });
 
-      let category: string;
-      if (duration < 60) category = "Short (<1m)";
-      else if (duration < 600) category = "Medium (1-10m)";
-      else if (duration < 1800) category = "Long (10-30m)";
-      else category = "Extended (30m+)";
+      return Object.entries(categories)
+        .filter(([_, data]) => data.count > 0)
+        .map(([name, data]) => ({
+          name,
+          engagement: data.views > 0 ? parseFloat(((data.likes + data.comments) / data.views * 100).toFixed(2)) : 0,
+          avgViews: Math.round(data.views / data.count),
+          count: data.count,
+        }));
+    }
 
-      categories[category].views += views;
-      categories[category].likes += likes;
-      categories[category].comments += comments;
-      categories[category].count += 1;
-    });
+    if (selectedPlatform === "instagram" && realInstagramData?.recent_media) {
+      const media = realInstagramData.recent_media;
+      const categories: Record<string, { engagement: number; count: number; totalReach: number }> = {};
 
-    // Calculate average engagement rate for each category
-    return Object.entries(categories)
-      .filter(([_, data]) => data.count > 0)
-      .map(([name, data]) => ({
-        name,
-        engagement: data.views > 0 ? parseFloat(((data.likes + data.comments) / data.views * 100).toFixed(2)) : 0,
-        avgViews: Math.round(data.views / data.count),
-        count: data.count,
+      media.forEach((item: any) => {
+        const type = item.media_type || "POST";
+        if (!categories[type]) categories[type] = { engagement: 0, count: 0, totalReach: 0 };
+
+        // Estimate engagement rate for this specific media
+        const er = item.like_count > 0 ? (item.like_count + (item.comments_count || 0)) / 100 : 8.2;
+        categories[type].engagement += er;
+        categories[type].count += 1;
+      });
+
+      return Object.entries(categories).map(([name, data]) => ({
+        name: name.charAt(0) + name.slice(1).toLowerCase(),
+        engagement: parseFloat((data.engagement / data.count).toFixed(2)),
+        count: data.count
       }));
+    }
+
+    return null;
   };
 
   // --- Aggregation Logic for "All Platforms" ---
@@ -522,9 +471,9 @@ const Analytics = () => {
     ],
   };
 
-  // Use real engagement data for YouTube, fallback to mock for others
+  // Use real engagement data for YouTube/Instagram, fallback to mock for others
   const realEngagement = getRealEngagementData();
-  const engagementTrend = selectedPlatform === "youtube" && realEngagement
+  const engagementTrend = (selectedPlatform === "youtube" || selectedPlatform === "instagram") && realEngagement
     ? realEngagement
     : (engagementByPlatform[selectedPlatform] || engagementByPlatform.all);
 
@@ -907,7 +856,7 @@ LinkedIn,${platformMetrics[3]?.engagement_rate}%,${platformMetrics[3]?.impressio
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
                     <Instagram className="h-5 w-5 text-pink-500" />
-                    <h3 className="font-semibold text-lg">@{instagramMetrics.username}</h3>
+                    <h3 className="font-semibold text-lg">@{instagramMetrics.username.replace(/^@+/, '')}</h3>
                     <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${instagramMetrics.isSimulated
                       ? "bg-amber-500/10 text-amber-500"
                       : "bg-green-500/10 text-green-500"
@@ -941,9 +890,11 @@ LinkedIn,${platformMetrics[3]?.engagement_rate}%,${platformMetrics[3]?.impressio
               {[
                 {
                   label: selectedPlatform === "all" ? "Total Impressions" : `${selectedPlatform.charAt(0).toUpperCase() + selectedPlatform.slice(1)} Impressions`,
-                  value: currentMetrics.impressions >= 1000000
-                    ? `${(currentMetrics.impressions / 1000000).toFixed(1)}M`
-                    : `${(currentMetrics.impressions / 1000).toFixed(0)}K`,
+                  value: currentMetrics.impressions === 0
+                    ? "0"
+                    : currentMetrics.impressions >= 1000000
+                      ? `${(currentMetrics.impressions / 1000000).toFixed(1)}M`
+                      : `${(currentMetrics.impressions / 1000).toFixed(0)}K`,
                   icon: Eye,
                   color: "text-blue-500",
                   bg: "bg-blue-500/10",

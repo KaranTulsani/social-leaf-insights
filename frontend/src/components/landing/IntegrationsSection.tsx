@@ -13,7 +13,7 @@ const platforms = [
 const plans = [
   {
     name: "Starter",
-    price: "$0",
+    price: "₹0",
     period: "/forever",
     description: "Perfect for individuals getting started with analytics",
     gradient: "from-emerald-500 to-teal-500",
@@ -28,7 +28,7 @@ const plans = [
   },
   {
     name: "Professional",
-    price: "$19",
+    price: "₹399",
     period: "/month",
     description: "Best for creators handling multiple platforms",
     gradient: "from-blue-500 to-cyan-500",
@@ -47,7 +47,7 @@ const plans = [
   },
   {
     name: "Business",
-    price: "$49",
+    price: "₹799",
     period: "/month",
     description: "Built for teams and brand campaigns",
     gradient: "from-violet-500 to-purple-500",
@@ -161,7 +161,7 @@ export function IntegrationsSection() {
                   {plan.name}
                 </h4>
                 <div className="flex items-baseline gap-1 mb-2">
-                  <span className="text-3xl font-bold text-white">{plan.price}</span>
+                  <span className="text-3xl font-bold text-white max-w-[140px] truncate">{plan.price}</span>
                   <span className="text-white/70 text-sm">{plan.period}</span>
                 </div>
                 <p className="text-white/80 text-sm mb-4">

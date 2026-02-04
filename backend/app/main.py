@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 from app.core.config import get_settings
-from app.routers import analytics, platforms, ai, reports, voice_coach, hooks, users, competitors
+from app.routers import analytics, platforms, ai, reports, voice_coach, hooks, users, competitors, admin
 from app.routers.oauth import router as oauth_router
 
 
@@ -54,6 +54,10 @@ app.include_router(competitors.router, prefix="/api/competitors", tags=["Competi
 app.include_router(hooks.router)  # Hook detector routes at /api/hooks/*
 app.include_router(oauth_router)  # OAuth routes at /auth/*
 app.include_router(users.router)  # User profile routes at /api/users/*
+app.include_router(users.router)  # User profile routes at /api/users/*
+app.include_router(admin.router, prefix="/api")  # Admin routes at /api/admin/*
+from app.routers import system
+app.include_router(system.router, prefix="/api") # System routes at /api/system/*
 from app.routers import post
 app.include_router(post.router, prefix="/api/post", tags=["Post Creation"])
 from app.routers import instagram_publish
@@ -114,6 +118,8 @@ async def get_real_youtube(handle: str = None):
         channel_id = await service.resolve_channel_id(handle)
         if channel_id:
             stats = await service.get_public_channel_stats(channel_id)
+            videos = await service.get_channel_videos_with_stats(channel_id, max_results=6)
+            
             # Transform to match "Real Data" format expected by frontend
             return {
                 "platform": "youtube",
@@ -129,7 +135,8 @@ async def get_real_youtube(handle: str = None):
                     "subscribers": stats["statistics"]["subscribers"],
                     "views": stats["statistics"]["views"],
                     "videos": stats["statistics"]["videos"],
-                }
+                },
+                "recent_videos": videos
             }
 
     from app.services.youtube_service import get_youtube_analytics

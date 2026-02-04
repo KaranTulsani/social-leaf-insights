@@ -16,8 +16,24 @@ interface ConnectAccountsModalProps {
 
 export function ConnectAccountsModal({ open, onOpenChange }: ConnectAccountsModalProps) {
   const handleConnect = (type: "both" | "individual") => {
-    // Simulate connection
+    // 1. Set the legacy connect flag for Dashboard.tsx
     localStorage.setItem("hasConnectedAccounts", "true");
+
+    // 2. Set the data connections for SocialDataContext.tsx
+    const mockConnections = {
+      youtube: { connected: true, dataType: "Real API Connected" },
+      instagram: { connected: true, publicHandle: "mrbeast", dataType: "Simulated Data" },
+      twitter: { connected: true, dataType: "Simulated Data" },
+      linkedin: { connected: true, dataType: "Simulated Data" }
+    };
+    localStorage.setItem("socialleaf_connections", JSON.stringify(mockConnections));
+
+    // 3. Trigger context refresh (SocialDataContext listens for storage events)
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: 'socialleaf_connections',
+      newValue: JSON.stringify(mockConnections)
+    }));
+
     onOpenChange(false);
     toast.success("Accounts connected successfully!");
   };

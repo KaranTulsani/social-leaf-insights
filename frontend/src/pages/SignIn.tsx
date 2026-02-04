@@ -41,6 +41,34 @@ const SignIn = () => {
       }
 
       toast.success("Welcome back!");
+
+      // Check if user is admin and redirect accordingly
+      // We need to fetch the profile or check the role returned if available
+      // Since signIn doesn't return the profile directly in this context structure,
+      // we might need to rely on the auth context state updating or fetch it.
+      // However, AuthContext state updates might be async.
+      // For now, let's try to redirect to dashboard which should handle it? 
+      // User asked for "directly admin page".
+
+      // Let's inspect the returned data if we can, or just redirect.
+      // Better approach: Let's use the profile from AuthContext, but it might be stale 
+      // immediately after signIn call returns.
+      // safer to fetch profile here or let dashboard redirect. 
+      // But let's try to be smart.
+
+      // Actually, let's fetch the profile quickly to decide.
+      const { data: { session } } = await import("@/lib/supabase").then(m => m.supabase.auth.getSession());
+      if (session?.user) {
+        const { data: profile } = await import("@/lib/supabase").then(m =>
+          m.supabase.from('profiles').select('role').eq('id', session.user.id).single()
+        );
+
+        if (profile?.role === 'admin') {
+          navigate("/admin/analytics", { replace: true });
+          return;
+        }
+      }
+
       navigate(from, { replace: true });
     } catch (err) {
       toast.error("An error occurred. Please try again.");

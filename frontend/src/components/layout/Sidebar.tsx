@@ -34,6 +34,12 @@ const sidebarLinks = [
   { icon: Settings, label: "Settings", href: "/settings", feature: null },
 ];
 
+const adminLinks = [
+  { icon: BarChart3, label: "Analytics", href: "/admin/analytics", feature: null },
+  { icon: Users, label: "Users", href: "/admin/users", feature: null },
+  { icon: Settings, label: "Settings", href: "/admin/settings", feature: null },
+];
+
 function SidebarContent({ onClose }: { onClose?: () => void }) {
   const location = useLocation();
   const { profile, signOut } = useAuth();
@@ -86,7 +92,7 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
         {/* Nav Links */}
         <nav className="flex-1 p-4 overflow-y-auto">
           <ul className="space-y-2">
-            {sidebarLinks.map((link) => {
+            {(userRole === 'admin' ? adminLinks : sidebarLinks).map((link) => {
               const isActive = location.pathname === link.href;
               const isLocked = link.feature && !canAccessFeature(userPlan, userRole, link.feature);
 

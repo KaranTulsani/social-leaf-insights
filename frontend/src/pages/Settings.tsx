@@ -24,6 +24,16 @@ import { Sidebar, MobileNav } from "@/components/layout/Sidebar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 // Settings type
 interface AppSettings {
@@ -98,22 +108,24 @@ const loadConnections = (): Record<string, { connected: boolean; status: string;
   try {
     const saved = localStorage.getItem("socialleaf_connections");
     if (saved) {
-      const parsed = JSON.parse(saved);
-      // Always ensure YouTube shows as connected with Real Time Data
-      return {
-        ...parsed,
-        youtube: { connected: true, status: "Real Time Data" }
-      };
+      return JSON.parse(saved);
     }
   } catch { }
 
   return defaults;
 };
 
-// Save connections to localStorage
+// Save connections to localStorage and notify other components
 const saveConnections = (connections: Record<string, any>) => {
   try {
-    localStorage.setItem("socialleaf_connections", JSON.stringify(connections));
+    const connString = JSON.stringify(connections);
+    localStorage.setItem("socialleaf_connections", connString);
+
+    // Trigger storage event so SocialDataContext (which is in the same window) can update
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: 'socialleaf_connections',
+      newValue: connString
+    }));
   } catch { }
 };
 
@@ -222,6 +234,7 @@ const Settings = () => {
   const [apiKeyInput, setApiKeyInput] = useState("");
   const [channelIdInput, setChannelIdInput] = useState("");
   const [publicHandleInput, setPublicHandleInput] = useState("");
+  const [platformToDisconnect, setPlatformToDisconnect] = useState<string | null>(null);
 
 
   // Platform definitions
@@ -310,28 +323,33 @@ const Settings = () => {
 
   // Disconnect platform
   const handleDisconnect = (platformKey: string) => {
+    setPlatformToDisconnect(platformKey);
+  };
+
+  const confirmDisconnect = () => {
+    if (!platformToDisconnect) return;
+    const platformKey = platformToDisconnect;
     const platformName = platformDefs.find(p => p.key === platformKey)?.name;
 
-    if (confirm(`Are you sure you want to disconnect ${platformName}?`)) {
-      const newConnections = {
-        ...connections,
-        [platformKey]: {
-          connected: false,
-          status: "Not Connected",
-          apiKey: undefined,
-          channelId: undefined,
-          publicHandle: undefined,
-        },
-      };
+    const newConnections = {
+      ...connections,
+      [platformKey]: {
+        connected: false,
+        status: "Not Connected",
+        apiKey: undefined,
+        channelId: undefined,
+        publicHandle: undefined,
+      },
+    };
 
-      setConnections(newConnections);
-      saveConnections(newConnections);
+    setConnections(newConnections);
+    saveConnections(newConnections);
+    setPlatformToDisconnect(null);
 
-      toast({
-        title: "🔌 Disconnected",
-        description: `${platformName} has been disconnected.`
-      });
-    }
+    toast({
+      title: "🔌 Disconnected",
+      description: `${platformName} has been disconnected.`
+    });
   };
 
   // Update a setting
@@ -553,6 +571,25 @@ LinkedIn,${connections.linkedin?.status},${connections.linkedin?.apiKey ? "Yes" 
             </motion.div>
           </div >
         )}
+
+        {/* Disconnect Confirmation Modal */}
+        <AlertDialog open={!!platformToDisconnect} onOpenChange={(open) => !open && setPlatformToDisconnect(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will disconnect {platformDefs.find(p => p.key === platformToDisconnect)?.name} from your dashboard.
+                You will need to reconnect to see its live data again.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmDisconnect} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                Disconnect
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
 
         <div className="p-6 max-w-4xl mx-auto space-y-6">

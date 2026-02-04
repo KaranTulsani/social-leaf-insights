@@ -32,8 +32,8 @@ export const PLAN_DISPLAY_NAMES: Record<PlanType, string> = {
 
 export const PLAN_PRICES: Record<PlanType, { amount: number; period: string }> = {
   starter: { amount: 0, period: 'forever' },
-  professional: { amount: 19, period: 'month' },
-  business: { amount: 49, period: 'month' },
+  professional: { amount: 399, period: 'month' },
+  business: { amount: 799, period: 'month' },
 };
 
 /**

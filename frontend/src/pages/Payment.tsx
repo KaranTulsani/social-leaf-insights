@@ -65,7 +65,7 @@ const Payment = () => {
                 <p className="text-sm text-muted-foreground">Billed monthly after trial</p>
               </div>
               <div className="text-right">
-                <p className="text-2xl font-bold text-foreground">${planInfo.amount}</p>
+                <p className="text-2xl font-bold text-foreground">₹{planInfo.amount}</p>
                 <p className="text-sm text-muted-foreground">/{planInfo.period}</p>
               </div>
             </div>
