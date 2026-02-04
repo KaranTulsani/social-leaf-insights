@@ -40,6 +40,8 @@ async def get_analytics_overview(
     """
     # Import mock data service
     from app.services.mock_data import get_mock_analytics_overview
+    from app.services.instagram_service import get_instagram_insights
+    from app.services.youtube_service import get_youtube_analytics
     
     supabase = get_supabase()
     
@@ -53,6 +55,52 @@ async def get_analytics_overview(
         
         # If no data, return mock data for demo
         if not response.data:
+            # TRY REAL DATA FIRST
+            try:
+                # Instagram
+                ig_data = await get_instagram_insights()
+                
+                # YouTube
+                yt_data = await get_youtube_analytics()
+                
+                if ig_data or yt_data:
+                    # We have real data! Aggregate it.
+                    total_impressions = 0
+                    total_comments = 0
+                    total_shares = 0
+                    total_likes = 0
+                    total_reach = 0 # Using reach as base for engagement
+                    
+                    if ig_data and ig_data.get("metrics"):
+                        m = ig_data["metrics"]
+                        total_impressions += m.get("impressions", 0)
+                        total_reach += m.get("reach", 0)
+                        # IG insights don't give total comments/likes easily without iterating posts
+                        # Attempting to estimate or use what we have
+                    
+                    if yt_data and yt_data.get("metrics"):
+                        m = yt_data["metrics"]
+                        total_impressions += m.get("total_views", 0) # Views ~ Impressions for YT
+                        total_likes += m.get("recent_likes", 0)
+                        total_comments += m.get("recent_comments", 0)
+                        # YT doesn't have "reach", use views
+                        total_reach += m.get("total_views", 0) 
+                        
+                    engagement_rate = 0.0
+                    if total_reach > 0:
+                        engagement_rate = ((total_likes + total_comments + total_shares) / total_reach) * 100
+                    
+                    return AnalyticsOverview(
+                        total_impressions=total_impressions,
+                        engagement_rate=round(engagement_rate, 2),
+                        total_comments=total_comments,
+                        total_shares=total_shares,
+                        growth_rate=0.0 # Cannot calc growth without history
+                    )
+            except Exception as e:
+                print(f"Real data fetch failed: {e}")
+            
+            # Fallback to mock
             mock = get_mock_analytics_overview(current_user.user_id)
             return AnalyticsOverview(**mock)
         
@@ -95,6 +143,8 @@ async def get_platform_analytics(
     - **days**: Number of days to look back (default: 30)
     """
     from app.services.mock_data import get_mock_platform_metrics
+    from app.services.instagram_service import get_instagram_insights
+    from app.services.youtube_service import get_youtube_analytics
     
     supabase = get_supabase()
     
@@ -107,6 +157,38 @@ async def get_platform_analytics(
         ).eq("user_id", current_user.user_id).execute()
         
         if not posts_response.data:
+            # TRY REAL DATA
+            try:
+                if platform == "instagram":
+                    ig_data = await get_instagram_insights()
+                    if ig_data and ig_data.get("metrics"):
+                        m = ig_data["metrics"]
+                        # IG API returns limited data on "insights" call without post iteration
+                        # For simple stats:
+                        return PlatformMetrics(
+                            platform="instagram",
+                            impressions=m.get("impressions", 0),
+                            likes=0, # Need post iteration
+                            comments=0,
+                            shares=0,
+                            engagement_rate=0.0
+                        )
+                
+                elif platform == "youtube":
+                    yt_data = await get_youtube_analytics()
+                    if yt_data and yt_data.get("metrics"):
+                        m = yt_data["metrics"]
+                        return PlatformMetrics(
+                            platform="youtube",
+                            impressions=m.get("recent_views", 0),
+                            likes=m.get("recent_likes", 0),
+                            comments=m.get("recent_comments", 0),
+                            shares=0, # YT API doesn't give shares easily
+                            engagement_rate=m.get("engagement_rate", 0.0)
+                        )
+            except Exception as e:
+                print(f"Real platform fetch failed: {e}")
+
             # Return mock data for demo
             mock = get_mock_platform_metrics(platform)
             return PlatformMetrics(**mock)

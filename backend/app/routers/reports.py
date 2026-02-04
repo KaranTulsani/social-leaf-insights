@@ -6,6 +6,9 @@ from datetime import datetime
 from app.core.auth import get_current_user, TokenData
 from app.services.reports import generate_report, export_to_csv
 from app.services.best_time import get_best_posting_times
+from app.services.ai_service import ai_service
+from typing import Dict, Any
+from pydantic import BaseModel
 
 router = APIRouter()
 
@@ -67,3 +70,27 @@ async def get_best_time_to_post(
     - **content_type**: Filter by content type (reel, carousel, video, etc.)
     """
     return await get_best_posting_times(current_user.user_id, platform, content_type)
+
+
+class AnalysisRequest(BaseModel):
+    metrics: Dict[str, Any]
+
+
+@router.post("/analysis")
+async def get_report_analysis(
+    request: AnalysisRequest,
+    current_user: TokenData = Depends(get_current_user)
+):
+    """
+    Generate AI-powered analysis for a report based on provided metrics.
+    """
+    # Normalize keys to snake_case for backend consistency
+    metrics = {}
+    for k, v in request.metrics.items():
+        # Convert camelCase to snake_case (e.g., totalImpressions -> total_impressions)
+        snake_key = ''.join(['_' + c.lower() if c.isupper() else c for c in k]).lstrip('_')
+        metrics[snake_key] = v
+        
+    return {
+        "analysis": await ai_service.generate_detailed_report_analysis(metrics)
+    }

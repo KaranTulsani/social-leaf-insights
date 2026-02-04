@@ -54,8 +54,35 @@ def store_tokens(platform: str, tokens: dict) -> None:
 
 
 def get_tokens(platform: str) -> Optional[dict]:
-    """Get stored tokens for a platform."""
-    return user_tokens.get(platform)
+    """
+    Get stored tokens for a platform.
+    Checks in-memory store first, then falls back to environment variables.
+    """
+    # 1. Check in-memory first (for OAuth flow)
+    tokens = user_tokens.get(platform)
+    if tokens:
+        return tokens
+        
+    # 2. Check environment variables (for direct dev access)
+    settings = get_settings()
+    
+    if platform == "instagram" and settings.instagram_access_token:
+        # Fallback for Instagram
+        return {
+            "access_token": settings.instagram_access_token,
+            "token_type": "Bearer",
+            "is_env_fallback": True
+        }
+        
+    if platform == "youtube" and settings.youtube_access_token:
+        # Fallback for YouTube
+        return {
+            "access_token": settings.youtube_access_token,
+            "token_type": "Bearer",
+            "is_env_fallback": True
+        }
+        
+    return None
 
 
 # =============================================================================

@@ -60,6 +60,13 @@ export interface PostPreviewResponse {
   auto_post: boolean;
 }
 
+export interface ReportAnalysis {
+  executive_summary: string;
+  engagement_graph_analysis: string;
+  content_graph_analysis: string;
+  platform_graph_analysis: string;
+}
+
 
 // Helper function for API calls
 async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
@@ -187,6 +194,13 @@ export const api = {
   getBestTimeToPost: (token: string, platform?: string) =>
     fetchApi<any>(`/api/reports/best-time${platform ? `?platform=${platform}` : ''}`, {
       headers: { Authorization: `Bearer ${token}` },
+    }),
+
+  getReportAnalysis: (token: string, metrics: any) =>
+    fetchApi<{ analysis: ReportAnalysis }>('/api/reports/analysis', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ metrics }),
     }),
 
   // Platforms
