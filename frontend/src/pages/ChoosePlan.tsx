@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Check, Sparkles, Crown, Rocket } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,15 @@ import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthContext";
 import { PLAN_DISPLAY_NAMES, PLAN_PRICES, PlanType } from "@/lib/planPermissions";
 import LeafLoader from "@/components/LeafLoader";
+import OnboardingModal from "@/components/dashboard/OnboardingModal";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -75,11 +84,34 @@ const plans = [
 
 const ChoosePlan = () => {
   const navigate = useNavigate();
-  const { session, refreshProfile } = useAuth();
+  const { session, refreshProfile, profile } = useAuth();
   const [selectedPlan, setSelectedPlan] = useState<PlanType | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showLoader, setShowLoader] = useState(false);
   const [loaderDestination, setLoaderDestination] = useState<string>('/dashboard');
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  const [showConnectPrompt, setShowConnectPrompt] = useState(false);
+  const [hasSkipped, setHasSkipped] = useState(false);
+
+  // Check if user needs onboarding
+  useEffect(() => {
+    // Only show if not completed AND not skipped in this session
+    if (profile && !profile.onboarding_completed && !hasSkipped) {
+      setShowOnboarding(true);
+    }
+  }, [profile, hasSkipped]); // Re-evaluate if profile refreshes, but check hasSkipped
+
+  const handleOnboardingComplete = async () => {
+    setShowOnboarding(false);
+    // Refresh profile to get updated onboarding status
+    await refreshProfile();
+  };
+
+  const handleOnboardingSkip = () => {
+    setHasSkipped(true);
+    setShowOnboarding(false);
+  };
 
   const handleSelectPlan = async (planId: PlanType) => {
     setSelectedPlan(planId);
@@ -135,15 +167,97 @@ const ChoosePlan = () => {
     }
   };
 
+  const handleConnectPromptResult = (connect: boolean) => {
+    setShowConnectPrompt(false);
+
+    // Determine destination
+    let dest = '/dashboard';
+    if (connect) {
+      dest = '/connect-accounts';
+    } else if (selectedPlan !== 'starter') {
+      // If paid plan and they skip, they still need to pay?
+      // "just before dashboard" implies after everything else.
+      // But paying comes before dashboard.
+      // If payment is required, we should probably send them to payment FIRST.
+      // But the request said "after selection of plan".
+      // Let's stick to the plan: if paid -> payment.
+      dest = '/payment';
+    }
+
+    setLoaderDestination(dest);
+    setShowLoader(true);
+  };
+
   const handleLoaderComplete = () => {
     if (selectedPlan === 'starter') {
       toast.success('Welcome to SocialLeaf! Enjoy your Starter plan.');
-      navigate('/dashboard');
+      navigate(loaderDestination);
     } else {
       toast.success(`${PLAN_DISPLAY_NAMES[selectedPlan!]} plan selected!`);
-      navigate('/payment', { state: { plan: selectedPlan } });
+      // Pass the plan state if going to payment
+      navigate(loaderDestination, { state: { plan: selectedPlan } });
     }
   };
+
+  // Show onboarding modal first
+  if (showOnboarding) {
+    return (
+      <OnboardingModal
+        open={showOnboarding}
+        onComplete={handleOnboardingComplete}
+        onSkip={handleOnboardingSkip}
+      />
+    );
+  }
+
+  // Show Connect Accounts Prompt
+  if (showConnectPrompt) {
+    return (
+      <Dialog open={showConnectPrompt} onOpenChange={() => { }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-center text-xl font-display">Connect your social accounts?</DialogTitle>
+            <DialogDescription className="text-center">
+              Start tracking analytics immediately by connecting your platforms now.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-4 py-4">
+            <div className="flex justify-center gap-4 text-primary">
+              {/* Simple icons visual */}
+              <div className="flex -space-x-2">
+                <div className="h-8 w-8 rounded-full bg-pink-500 flex items-center justify-center border-2 border-background z-10">
+                  <span className="text-white text-[10px] font-bold">IG</span>
+                </div>
+                <div className="h-8 w-8 rounded-full bg-red-500 flex items-center justify-center border-2 border-background z-20">
+                  <span className="text-white text-[10px] font-bold">YT</span>
+                </div>
+                <div className="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center border-2 border-background z-30">
+                  <span className="text-white text-[10px] font-bold">LI</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="flex-col sm:flex-col gap-2">
+            <Button
+              className="w-full bg-primary"
+              size="lg"
+              onClick={() => handleConnectPromptResult(true)}
+            >
+              Connect Accounts
+            </Button>
+            <Button
+              variant="ghost"
+              className="w-full"
+              onClick={() => handleConnectPromptResult(false)}
+            >
+              Skip for now
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   // Show loader if active
   if (showLoader) {
     return (

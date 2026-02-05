@@ -58,6 +58,22 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
     );
   }
 
+  // If authenticated but profile fetch failed, show error
+  if (user && !profile && !loading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center p-4 text-center">
+        <h2 className="text-xl font-bold mb-2">Profile Error</h2>
+        <p className="text-muted-foreground mb-4">Failed to load user profile. Please try refreshing.</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 bg-primary text-primary-foreground rounded-md transition-colors hover:bg-primary/90"
+        >
+          Refresh Page
+        </button>
+      </div>
+    );
+  }
+
   // If maintenance mode is active (manual or automatic) and user is not an admin, show MaintenancePage
   if (isMaintenanceActive && profile?.role !== 'admin') {
     return <MaintenancePage />;

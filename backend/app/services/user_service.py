@@ -139,6 +139,40 @@ class UserService:
         except Exception as e:
             print(f"Error updating profile: {e}")
             return None
+    
+    async def save_onboarding_preferences(
+        self,
+        user_id: str,
+        preferences: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Save user onboarding preferences.
+        
+        Args:
+            user_id: Supabase auth user ID
+            preferences: Onboarding data (user_type, platforms, goals, etc.)
+            
+        Returns:
+            Updated profile dict
+        """
+        update_data = {
+            "user_type": preferences.get("user_type"),
+            "primary_platforms": preferences.get("primary_platforms"),
+            "content_formats": preferences.get("content_formats"),
+            "primary_goals": preferences.get("primary_goals"),
+            "posting_frequency": preferences.get("posting_frequency"),
+            "experience_level": preferences.get("experience_level"),
+            "onboarding_completed": True,
+            "onboarding_completed_at": datetime.utcnow().isoformat(),
+            "updated_at": datetime.utcnow().isoformat(),
+        }
+        
+        try:
+            response = self.supabase.table("profiles").update(update_data).eq("id", user_id).execute()
+            return response.data[0] if response.data else None
+        except Exception as e:
+            print(f"Error saving onboarding preferences: {e}")
+            return None
 
 
 # Singleton instance
