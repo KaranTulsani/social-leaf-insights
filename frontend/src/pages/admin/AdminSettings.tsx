@@ -9,7 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+import { API_BASE_URL } from "@/services/api";
 
 interface GlobalSettings {
   announcement: string;
@@ -41,7 +41,7 @@ export default function AdminSettings() {
   const fetchSettings = async () => {
     if (!session?.access_token) return;
     try {
-      const res = await fetch(`${API_URL}/api/admin/settings`, {
+      const res = await fetch(`${API_BASE_URL}/api/admin/settings`, {
         headers: { Authorization: `Bearer ${session.access_token}` }
       });
       if (res.ok) {
@@ -65,7 +65,7 @@ export default function AdminSettings() {
     console.log("Saving settings:", settings);
     try {
       setLoading(true);
-      const res = await fetch(`${API_URL}/api/admin/settings`, {
+      const res = await fetch(`${API_BASE_URL}/api/admin/settings`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -91,7 +91,7 @@ export default function AdminSettings() {
 
     try {
       setNotifying(true);
-      const res = await fetch(`${API_URL}/api/admin/system/notify-maintenance`, {
+      const res = await fetch(`${API_BASE_URL}/api/admin/system/notify-maintenance`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

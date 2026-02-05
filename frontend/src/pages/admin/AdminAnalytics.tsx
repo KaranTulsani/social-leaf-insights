@@ -19,7 +19,7 @@ import { Sidebar, MobileNav } from "@/components/layout/Sidebar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+import { API_BASE_URL } from "@/services/api";
 
 interface AdminStats {
   total_users: number;
@@ -71,23 +71,23 @@ export default function AdminAnalytics() {
         const headers = { Authorization: `Bearer ${session.access_token}` };
 
         // Fetch Overview
-        const overviewRes = await fetch(`${API_URL}/api/admin/analytics/overview`, { headers });
+        const overviewRes = await fetch(`${API_BASE_URL}/api/admin/analytics/overview`, { headers });
         if (!overviewRes.ok) throw new Error("Failed to fetch overview");
         const overviewData = await overviewRes.json();
         setStats(overviewData);
 
         // Fetch Plans
-        const plansRes = await fetch(`${API_URL}/api/admin/analytics/plans`, { headers });
+        const plansRes = await fetch(`${API_BASE_URL}/api/admin/analytics/plans`, { headers });
         if (!plansRes.ok) throw new Error("Failed to fetch plan data");
         const plansData = await plansRes.json();
         setPlanData(plansData);
 
         // Fetch Platform Stats
-        const platRes = await fetch(`${API_URL}/api/admin/analytics/platform-stats`, { headers });
+        const platRes = await fetch(`${API_BASE_URL}/api/admin/analytics/platform-stats`, { headers });
         if (platRes.ok) setPlatformStats(await platRes.json());
 
         // Fetch Recent Users
-        const usersRes = await fetch(`${API_URL}/api/admin/analytics/recent-users`, { headers });
+        const usersRes = await fetch(`${API_BASE_URL}/api/admin/analytics/recent-users`, { headers });
         if (usersRes.ok) setRecentUsers(await usersRes.json());
 
 

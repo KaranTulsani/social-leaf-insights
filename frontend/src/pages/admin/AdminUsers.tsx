@@ -9,7 +9,7 @@ import { Search, Ban, Shield, ArrowUpCircle, AlertTriangle, X } from "lucide-rea
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+import { API_BASE_URL } from "@/services/api";
 
 interface User {
   id: string;
@@ -52,7 +52,7 @@ export default function AdminUsers() {
         ...(search && { search })
       });
 
-      const res = await fetch(`${API_URL}/api/admin/users?${queryParams}`, {
+      const res = await fetch(`${API_BASE_URL}/api/admin/users?${queryParams}`, {
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
 
@@ -83,7 +83,7 @@ export default function AdminUsers() {
 
   const updateUserRole = async (userId: string, newRole: string) => {
     try {
-      const res = await fetch(`${API_URL}/api/admin/users/${userId}/role`, {
+      const res = await fetch(`${API_BASE_URL}/api/admin/users/${userId}/role`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -104,7 +104,7 @@ export default function AdminUsers() {
 
   const updateUserPlan = async (userId: string, newPlan: string) => {
     try {
-      const res = await fetch(`${API_URL}/api/admin/users/${userId}/plan`, {
+      const res = await fetch(`${API_BASE_URL}/api/admin/users/${userId}/plan`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -267,12 +267,12 @@ export default function AdminUsers() {
             <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${confirmModal.variant === 'danger' ? 'bg-red-100' :
-                    confirmModal.variant === 'warning' ? 'bg-yellow-100' :
-                      'bg-blue-100'
+                  confirmModal.variant === 'warning' ? 'bg-yellow-100' :
+                    'bg-blue-100'
                   }`}>
                   <AlertTriangle className={`h-5 w-5 ${confirmModal.variant === 'danger' ? 'text-red-600' :
-                      confirmModal.variant === 'warning' ? 'text-yellow-600' :
-                        'text-blue-600'
+                    confirmModal.variant === 'warning' ? 'text-yellow-600' :
+                      'text-blue-600'
                     }`} />
                 </div>
                 <h3 className="font-semibold text-gray-900">{confirmModal.title}</h3>
@@ -301,8 +301,8 @@ export default function AdminUsers() {
               </Button>
               <Button
                 className={`flex-1 ${confirmModal.variant === 'danger' ? 'bg-red-600 hover:bg-red-700' :
-                    confirmModal.variant === 'warning' ? 'bg-yellow-600 hover:bg-yellow-700' :
-                      'bg-blue-600 hover:bg-blue-700'
+                  confirmModal.variant === 'warning' ? 'bg-yellow-600 hover:bg-yellow-700' :
+                    'bg-blue-600 hover:bg-blue-700'
                   } text-white`}
                 onClick={confirmModal.onConfirm}
               >

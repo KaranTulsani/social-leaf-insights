@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthContext";
+import { supabase } from "@/lib/supabase";
 
 const SignIn = () => {
   const navigate = useNavigate();
@@ -57,13 +58,16 @@ const SignIn = () => {
       // But let's try to be smart.
 
       // Actually, let's fetch the profile quickly to decide.
+
       // Safer admin check
       try {
-        const { data: { session } } = await import("@/lib/supabase").then(m => m.supabase.auth.getSession());
+        const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
-          const { data: profile } = await import("@/lib/supabase").then(m =>
-            m.supabase.from('profiles').select('role').eq('id', session.user.id).single()
-          );
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', session.user.id)
+            .single();
 
           if (profile?.role === 'admin') {
             navigate("/admin/analytics", { replace: true });

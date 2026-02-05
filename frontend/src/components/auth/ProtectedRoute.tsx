@@ -1,5 +1,6 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthContext";
+import { API_BASE_URL } from "@/services/api";
 import { useEffect, useState } from "react";
 import { MaintenancePage } from "@/pages/MaintenancePage";
 
@@ -13,8 +14,7 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
     let mounted = true;
     const checkStatus = async () => {
       try {
-        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-        const res = await fetch(`${API_URL}/api/system/status`);
+        const res = await fetch(`${API_BASE_URL}/api/system/status`);
         if (res.ok && mounted) {
           const data = await res.json();
 

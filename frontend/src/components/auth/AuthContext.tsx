@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+import { API_BASE_URL } from "@/services/api";
 
 export interface UserProfile {
   id: string;
@@ -43,7 +43,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Fetch profile from backend (always fresh from DB)
   const fetchProfile = useCallback(async (accessToken: string) => {
     try {
-      const response = await fetch(`${API_URL}/api/users/me`, {
+      const response = await fetch(`${API_BASE_URL}/api/users/me`, {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json',
@@ -132,7 +132,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Create profile in backend
       if (data.session?.access_token) {
         try {
-          await fetch(`${API_URL}/api/users/me/profile`, {
+          await fetch(`${API_BASE_URL}/api/users/me/profile`, {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${data.session.access_token}`,

@@ -236,7 +236,7 @@ export const api = {
 
   // AI Audience Persona
   getAudiencePersona: (token: string) =>
-    fetchApi<any>('/ai/audience-persona', {
+    fetchApi<any>('/api/ai/audience-persona', {
       headers: { Authorization: `Bearer ${token}` },
     }),
 };
