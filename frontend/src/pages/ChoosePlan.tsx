@@ -210,6 +210,12 @@ const ChoosePlan = () => {
       <Dialog open={showConnectPrompt} onOpenChange={() => { }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
+            <DialogTitle>Processing Payment</DialogTitle>
+            <DialogDescription>
+              Please wait while we process your secure payment.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogHeader>
             <DialogTitle className="text-center text-xl font-display">Connect your social accounts?</DialogTitle>
             <DialogDescription className="text-center">
               Start tracking analytics immediately by connecting your platforms now.

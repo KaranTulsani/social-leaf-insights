@@ -177,7 +177,7 @@ const OnboardingModal = ({ open, onComplete, onSkip }: OnboardingModalProps) => 
             <div
               key={s}
               className={`h-2 rounded-full transition-all ${s === step ? 'w-8 bg-gradient-to-r from-emerald-500 to-teal-500' :
-                  s < step ? 'w-2 bg-emerald-500' : 'w-2 bg-gray-300'
+                s < step ? 'w-2 bg-emerald-500' : 'w-2 bg-gray-300'
                 }`}
             />
           ))}
@@ -205,8 +205,8 @@ const OnboardingModal = ({ open, onComplete, onSkip }: OnboardingModalProps) => 
                       key={type.value}
                       onClick={() => setFormData({ ...formData, user_type: type.value })}
                       className={`p-4 rounded-xl border-2 transition-all text-left ${formData.user_type === type.value
-                          ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950'
-                          : 'border-gray-200 hover:border-emerald-300'
+                        ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950'
+                        : 'border-gray-200 hover:border-emerald-300'
                         }`}
                     >
                       <div className="flex items-center gap-3">
@@ -237,8 +237,8 @@ const OnboardingModal = ({ open, onComplete, onSkip }: OnboardingModalProps) => 
                         key={platform.value}
                         onClick={() => toggleArrayValue('primary_platforms', platform.value)}
                         className={`p-3 rounded-lg border-2 transition-all ${formData.primary_platforms.includes(platform.value)
-                            ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950'
-                            : 'border-gray-200 hover:border-emerald-300'
+                          ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950'
+                          : 'border-gray-200 hover:border-emerald-300'
                           }`}
                       >
                         <div className="flex items-center gap-2">
@@ -262,8 +262,8 @@ const OnboardingModal = ({ open, onComplete, onSkip }: OnboardingModalProps) => 
                         key={format.value}
                         onClick={() => toggleArrayValue('content_formats', format.value)}
                         className={`p-3 rounded-lg border-2 transition-all ${formData.content_formats.includes(format.value)
-                            ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950'
-                            : 'border-gray-200 hover:border-emerald-300'
+                          ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950'
+                          : 'border-gray-200 hover:border-emerald-300'
                           }`}
                       >
                         <div className="flex items-center gap-2">
@@ -293,8 +293,8 @@ const OnboardingModal = ({ open, onComplete, onSkip }: OnboardingModalProps) => 
                         onClick={() => toggleArrayValue('primary_goals', goal.value, 2)}
                         disabled={!formData.primary_goals.includes(goal.value) && formData.primary_goals.length >= 2}
                         className={`p-3 rounded-lg border-2 transition-all text-left ${formData.primary_goals.includes(goal.value)
-                            ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950'
-                            : 'border-gray-200 hover:border-emerald-300 disabled:opacity-50 disabled:cursor-not-allowed'
+                          ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950'
+                          : 'border-gray-200 hover:border-emerald-300 disabled:opacity-50 disabled:cursor-not-allowed'
                           }`}
                       >
                         <div className="flex items-center gap-3">
@@ -317,8 +317,8 @@ const OnboardingModal = ({ open, onComplete, onSkip }: OnboardingModalProps) => 
                         key={freq.value}
                         onClick={() => setFormData({ ...formData, posting_frequency: freq.value })}
                         className={`p-3 rounded-lg border-2 transition-all ${formData.posting_frequency === freq.value
-                            ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950'
-                            : 'border-gray-200 hover:border-emerald-300'
+                          ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950'
+                          : 'border-gray-200 hover:border-emerald-300'
                           }`}
                       >
                         <div className="text-center">
@@ -338,8 +338,8 @@ const OnboardingModal = ({ open, onComplete, onSkip }: OnboardingModalProps) => 
                         key={level.value}
                         onClick={() => setFormData({ ...formData, experience_level: level.value })}
                         className={`p-3 rounded-lg border-2 transition-all text-left ${formData.experience_level === level.value
-                            ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950'
-                            : 'border-gray-200 hover:border-emerald-300'
+                          ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950'
+                          : 'border-gray-200 hover:border-emerald-300'
                           }`}
                       >
                         <div className="flex items-center justify-between">

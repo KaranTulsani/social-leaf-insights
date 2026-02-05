@@ -61,13 +61,21 @@ const SignIn = () => {
 
       // Safer admin check
       try {
+        console.log("Debug: Checking supabase instance", supabase);
         const { data: { session } } = await supabase.auth.getSession();
+        console.log("Debug: Session user", session?.user);
+
         if (session?.user) {
-          const { data: profile } = await supabase
+          console.log("Debug: Fetching profile for role check");
+          const { data: profile, error: profileError } = await supabase
             .from('profiles')
             .select('role')
             .eq('id', session.user.id)
             .single();
+
+          if (profileError) {
+            console.warn("Debug: Profile fetch error", profileError);
+          }
 
           if (profile?.role === 'admin') {
             navigate("/admin/analytics", { replace: true });
