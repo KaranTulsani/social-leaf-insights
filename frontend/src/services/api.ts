@@ -4,6 +4,7 @@
  */
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+console.log('🔌 API URL:', API_BASE_URL); // Debugging connection
 
 // Types
 export interface AnalyticsOverview {
