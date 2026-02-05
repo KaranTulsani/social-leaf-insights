@@ -57,21 +57,27 @@ const SignIn = () => {
       // But let's try to be smart.
 
       // Actually, let's fetch the profile quickly to decide.
-      const { data: { session } } = await import("@/lib/supabase").then(m => m.supabase.auth.getSession());
-      if (session?.user) {
-        const { data: profile } = await import("@/lib/supabase").then(m =>
-          m.supabase.from('profiles').select('role').eq('id', session.user.id).single()
-        );
+      // Safer admin check
+      try {
+        const { data: { session } } = await import("@/lib/supabase").then(m => m.supabase.auth.getSession());
+        if (session?.user) {
+          const { data: profile } = await import("@/lib/supabase").then(m =>
+            m.supabase.from('profiles').select('role').eq('id', session.user.id).single()
+          );
 
-        if (profile?.role === 'admin') {
-          navigate("/admin/analytics", { replace: true });
-          return;
+          if (profile?.role === 'admin') {
+            navigate("/admin/analytics", { replace: true });
+            return;
+          }
         }
+      } catch (checkError) {
+        console.warn("Admin role check failed, proceeding to dashboard:", checkError);
       }
 
       navigate(from, { replace: true });
     } catch (err) {
-      toast.error("An error occurred. Please try again.");
+      console.error("Login process error:", err);
+      toast.error("An error occurred. Please check console for details.");
     } finally {
       setIsLoading(false);
     }
