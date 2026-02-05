@@ -21,6 +21,7 @@ import VoiceCoach from "./pages/VoiceCoach";
 import HookDetector from "./pages/HookDetector";
 import ChoosePlan from "./pages/ChoosePlan";
 import Payment from "./pages/Payment";
+import PaymentSuccess from "./pages/PaymentSuccess";
 import Account from "./pages/Account";
 import CompetitorSpy from "./pages/CompetitorSpy";
 import AdminAnalytics from "./pages/admin/AdminAnalytics";
@@ -64,6 +65,14 @@ const App = () => (
                   element={
                     <ProtectedRoute>
                       <Payment />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/payment/success"
+                  element={
+                    <ProtectedRoute>
+                      <PaymentSuccess />
                     </ProtectedRoute>
                   }
                 />

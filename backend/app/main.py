@@ -63,6 +63,10 @@ app.include_router(post.router, prefix="/api/post", tags=["Post Creation"])
 from app.routers import instagram_publish
 app.include_router(instagram_publish.router, prefix="/api/instagram", tags=["Instagram Publish"])
 
+from app.routers import payment
+app.include_router(payment.router)
+
+
 
 @app.get("/")
 async def root():
