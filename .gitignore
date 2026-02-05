@@ -4,8 +4,8 @@ __pycache__/
 *$py.class
 venv/
 env/
-.env
-.venv
+# .env  # Commented out to include .env files in private repo
+# .venv
 
 # Node/JS
 node_modules/
@@ -19,5 +19,6 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Uploads (local)
+# Uploads (local) - exclude to avoid large files
+backend/app/uploads/
 app/uploads/

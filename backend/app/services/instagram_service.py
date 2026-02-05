@@ -19,7 +19,10 @@ async def get_instagram_account() -> Optional[dict]:
     """
     tokens = get_tokens("instagram")
     if not tokens:
+        print("❌ Instagram Service: No tokens found!")
         return None
+    
+    print(f"✅ It works! Using Instagram Token: {tokens.get('access_token')[:10]}...")
     
     async with httpx.AsyncClient() as client:
         # Get user's pages first
@@ -246,6 +249,16 @@ async def get_simulated_stats(username: str) -> dict:
     falling back to simulation if blocked.
     """
     username_clean = username.lower().replace("@", "")
+
+    # Force "Real Graph API" path if this is OUR connected user (hardcoded for now as per env analysis)
+    # The valid token in .env belongs to this user ID, so we should use it!
+    # Valid Username for ID 17841480009362133 is 'karantulsani_'
+    if username_clean == "karantulsani_":
+        print(f"🚀 DETECTED OWNER ACCOUNT: {username_clean}. Forcing Graph API usage...")
+        real_insights = await get_instagram_insights()
+        if real_insights:
+             return real_insights
+        print("⚠️ Graph API failed even for owner. Falling back to simulation.")
     
     # Preset known influencers for demo overrides (optional, can be removed if we want pure scrape)
     # Keeping them as "Fast Path" for demo reliability if scraping fails
