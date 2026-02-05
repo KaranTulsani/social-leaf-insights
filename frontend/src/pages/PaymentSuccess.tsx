@@ -58,11 +58,11 @@ const PaymentSuccess = () => {
         }
     }, [searchParams, session, refreshProfile]);
 
-    // Auto-redirect on success
+    // Auto-redirect on success to connect accounts
     useEffect(() => {
         if (status === 'success') {
             const timer = setTimeout(() => {
-                navigate('/dashboard');
+                navigate('/connect-accounts');
             }, 3000);
             return () => clearTimeout(timer);
         }
@@ -88,9 +88,9 @@ const PaymentSuccess = () => {
                         <CheckCircle2 className="h-16 w-16 text-green-500 mb-4" />
                         <h2 className="text-2xl font-bold text-gray-800">Success!</h2>
                         <p className="text-gray-600 mt-2 mb-6">{message}</p>
-                        <p className="text-sm text-gray-500 mb-4">Redirecting to dashboard...</p>
-                        <Button onClick={() => navigate('/dashboard')} className="w-full">
-                            Go to Dashboard
+                        <p className="text-sm text-gray-500 mb-4">Redirecting to connect accounts...</p>
+                        <Button onClick={() => navigate('/connect-accounts')} className="w-full">
+                            Connect Your Accounts
                         </Button>
                     </div>
                 )}
