@@ -19,8 +19,8 @@ import api, { PostPreviewResponse } from "@/services/api";
 
 const CreatePost = () => {
     const { session } = useAuth();
-    const [selectedFile, setSelectedFile] = useState<File | null>(null);
-    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+    const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+    const [previewUrls, setPreviewUrls] = useState<string[]>([]);
     const [isGenerating, setIsGenerating] = useState(false);
 
     // Optional Inputs
@@ -32,30 +32,43 @@ const CreatePost = () => {
 
     // Result
     const [generatedPost, setGeneratedPost] = useState<PostPreviewResponse | null>(null);
+    const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            setSelectedFile(file);
-            setPreviewUrl(URL.createObjectURL(file));
-            // Reset generated post when new image is selected
+        const files = Array.from(e.target.files || []);
+        if (files.length > 0) {
+            setSelectedFiles(prev => [...prev, ...files]);
+            const newUrls = files.map(file => URL.createObjectURL(file));
+            setPreviewUrls(prev => [...prev, ...newUrls]);
             setGeneratedPost(null);
         }
     };
 
     const handleDrop = (e: React.DragEvent) => {
         e.preventDefault();
-        const file = e.dataTransfer.files?.[0];
-        if (file && file.type.startsWith("image/")) {
-            setSelectedFile(file);
-            setPreviewUrl(URL.createObjectURL(file));
+        const files = Array.from(e.dataTransfer.files).filter(file => file.type.startsWith("image/"));
+        if (files.length > 0) {
+            setSelectedFiles(prev => [...prev, ...files]);
+            const newUrls = files.map(file => URL.createObjectURL(file));
+            setPreviewUrls(prev => [...prev, ...newUrls]);
             setGeneratedPost(null);
         }
     };
 
+    const removeImage = (index: number) => {
+        const newFiles = [...selectedFiles];
+        newFiles.splice(index, 1);
+        setSelectedFiles(newFiles);
+
+        const newUrls = [...previewUrls];
+        URL.revokeObjectURL(newUrls[index]);
+        newUrls.splice(index, 1);
+        setPreviewUrls(newUrls);
+    };
+
     const handleGenerate = async () => {
-        if (!selectedFile) {
-            toast.error("Please upload an image first.");
+        if (selectedFiles.length === 0) {
+            toast.error("Please upload at least one image.");
             return;
         }
 
@@ -67,7 +80,10 @@ const CreatePost = () => {
         setIsGenerating(true);
         try {
             const formData = new FormData();
-            formData.append("image", selectedFile);
+            selectedFiles.forEach(file => {
+                formData.append("images", file);
+            });
+
             if (niche) formData.append("niche", niche);
             if (tone) formData.append("tone", tone);
             if (goal) formData.append("goal", goal);
@@ -76,13 +92,19 @@ const CreatePost = () => {
 
             const response = await api.generatePost(session.access_token, formData);
             setGeneratedPost(response);
-            toast.success("Caption generated successfully!");
+            setCurrentImageIndex(0);
+            toast.success("Magic Caption generated! ✨");
         } catch (error) {
             console.error(error);
             toast.error("Failed to generate post. Please try again.");
         } finally {
             setIsGenerating(false);
         }
+    };
+
+    const handleFeedback = (type: 'like' | 'dislike') => {
+        toast.success(type === 'like' ? "Thanks! We'll make more like this." : "Thanks! We'll improve next time.");
+        // Future: Send to backend API
     };
 
     // Mock submission for now
@@ -93,16 +115,11 @@ const CreatePost = () => {
 
         setIsPublishing(true);
         try {
-            // Use the PUBLIC URL returned by the backend (optimized_image_path should be a URL)
-            // Note: In development, localhost might not work with FB Graph API unless tunneled. 
-            // For now, we assume the backend returns a usable URL or we rely on the user testing in an env where it works.
-            // If optimized_image_path is a local path, we might need to convert it to a serve-able URL.
-            // Assuming the backend returns a relative path like "uploads/optimized/..." and we prepend base URL.
-
-            // For this implementation, we assume `optimized_image_path` needs to be fully qualified if it isn't already.
-            const imageUrl = generatedPost.optimized_image_path.startsWith('http')
-                ? generatedPost.optimized_image_path
-                : `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/${generatedPost.optimized_image_path}`;
+            // Use the first image for now, or handle carousel publishing
+            const imagePath = generatedPost.optimized_image_paths[0];
+            const imageUrl = imagePath.startsWith('http')
+                ? imagePath
+                : `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/${imagePath}`;
 
             await api.publishToInstagram(session.access_token, {
                 image_url: imageUrl,
@@ -136,7 +153,7 @@ const CreatePost = () => {
                         <div className="flex items-center justify-between">
                             <div>
                                 <h2 className="text-3xl font-display font-bold text-foreground">Draft Content</h2>
-                                <p className="text-muted-foreground mt-1">Upload an image and let AI craft the perfect caption.</p>
+                                <p className="text-muted-foreground mt-1">Upload images (Carousel supported!) and let AI craft the caption.</p>
                             </div>
                         </div>
 
@@ -145,36 +162,60 @@ const CreatePost = () => {
                             <div className="space-y-6">
                                 {/* Image Upload */}
                                 <Card
-                                    className={`border-2 border-dashed p-8 text-center cursor-pointer transition-colors ${previewUrl ? "border-primary/50 bg-primary/5" : "border-border hover:border-primary/50"
+                                    className={`relative border-2 border-dashed p-8 text-center cursor-pointer transition-colors ${selectedFiles.length > 0 ? "border-primary/50 bg-primary/5" : "border-border hover:border-primary/50"
                                         }`}
                                     onDragOver={(e) => e.preventDefault()}
                                     onDrop={handleDrop}
-                                    onClick={() => document.getElementById("file-upload")?.click()}
                                 >
-                                    <input
-                                        id="file-upload"
-                                        type="file"
-                                        accept="image/*"
-                                        className="hidden"
-                                        onChange={handleFileChange}
-                                    />
-
-                                    {previewUrl ? (
-                                        <div className="relative aspect-[4/5] max-h-[400px] mx-auto overflow-hidden rounded-lg shadow-md">
-                                            <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
-                                            <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
-                                                <p className="text-white font-medium flex items-center gap-2">
-                                                    <RefreshCw className="h-4 w-4" /> Change Image
-                                                </p>
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <div className="py-12 flex flex-col items-center justify-center text-muted-foreground">
+                                    {selectedFiles.length === 0 && (
+                                        <div onClick={() => document.getElementById("file-upload")?.click()} className="h-full w-full flex flex-col items-center justify-center">
+                                            <input
+                                                id="file-upload"
+                                                type="file"
+                                                accept="image/*"
+                                                multiple
+                                                className="hidden"
+                                                onChange={handleFileChange}
+                                            />
                                             <div className="h-16 w-16 bg-muted rounded-full flex items-center justify-center mb-4">
                                                 <UploadCloud className="h-8 w-8 text-foreground/50" />
                                             </div>
-                                            <p className="text-lg font-medium text-foreground">Click or Drop Image Here</p>
+                                            <p className="text-lg font-medium text-foreground">Click or Drop Images Here</p>
                                             <p className="text-sm mt-1">Supports JPG, PNG (Max 10MB)</p>
+                                        </div>
+                                    )}
+
+                                    {/* Carousel Preview Area */}
+                                    {selectedFiles.length > 0 && (
+                                        <div className="grid grid-cols-2 gap-4 mt-4">
+                                            {previewUrls.map((url, idx) => (
+                                                <div key={idx} className="relative aspect-[4/5] rounded-lg overflow-hidden border border-border group">
+                                                    <img src={url} alt={`Preview ${idx}`} className="w-full h-full object-cover" />
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); removeImage(idx); }}
+                                                        className="absolute top-2 right-2 p-1 bg-black/60 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    >
+                                                        <span className="sr-only">Remove</span>
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                                    </button>
+                                                </div>
+                                            ))}
+                                            {/* Add More Button */}
+                                            <div
+                                                onClick={() => document.getElementById("file-upload-add")?.click()}
+                                                className="aspect-[4/5] flex flex-col items-center justify-center border-2 border-dashed border-primary/30 rounded-lg hover:bg-primary/5 transition-colors"
+                                            >
+                                                <input
+                                                    id="file-upload-add"
+                                                    type="file"
+                                                    accept="image/*"
+                                                    multiple
+                                                    className="hidden"
+                                                    onChange={handleFileChange}
+                                                />
+                                                <UploadCloud className="h-6 w-6 text-primary mb-2" />
+                                                <span className="text-sm font-medium text-primary">Add More</span>
+                                            </div>
                                         </div>
                                     )}
                                 </Card>
@@ -250,11 +291,11 @@ const CreatePost = () => {
                                     className="w-full h-12 text-lg font-semibold shadow-lg"
                                     size="lg"
                                     onClick={handleGenerate}
-                                    disabled={isGenerating || !selectedFile}
+                                    disabled={isGenerating || selectedFiles.length === 0}
                                 >
                                     {isGenerating ? (
                                         <>
-                                            <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Analyzing Image...
+                                            <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Vision AI Analyzing...
                                         </>
                                     ) : (
                                         <>
@@ -279,11 +320,17 @@ const CreatePost = () => {
                                                     {generatedPost.style} Style
                                                 </span>
                                             </div>
-                                            {generatedPost.auto_post && (
-                                                <span className="text-xs flex items-center gap-1 text-green-600 font-medium">
-                                                    <CheckCircle2 className="h-3 w-3" /> Auto-Post Enabled
-                                                </span>
-                                            )}
+
+                                            {/* Feedback Loop */}
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-xs text-muted-foreground mr-1">Like this result?</span>
+                                                <button onClick={() => handleFeedback('like')} className="p-1.5 hover:bg-green-500/10 hover:text-green-500 rounded-md transition-colors" title="I like this">
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714.211 1.412.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5"></path></svg>
+                                                </button>
+                                                <button onClick={() => handleFeedback('dislike')} className="p-1.5 hover:bg-red-500/10 hover:text-red-500 rounded-md transition-colors" title="Improve this">
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14H5.236a2 2 0 01-1.789-2.894l3.5-7A2 2 0 018.736 3h4.018a2 2 0 01.485.06l3.76.94m-7 10v5a2 2 0 002 2h.096c.5 0 .905-.405.905-.904 0-.715-.211-1.413-.608-2.006L17 13V4m-7 10h2m5-10h2a2 2 0 012 2v6a2 2 0 01-2 2h-2.5"></path></svg>
+                                                </button>
+                                            </div>
                                         </div>
 
                                         <div className="p-6 space-y-4">
@@ -306,10 +353,7 @@ const CreatePost = () => {
                                                 </div>
                                             </div>
 
-                                            <div className="p-3 bg-muted rounded-lg border border-border flex items-center justify-between">
-                                                <span className="text-sm font-medium text-muted-foreground">CTA Used:</span>
-                                                <span className="text-sm font-bold text-foreground">{generatedPost.cta}</span>
-                                            </div>
+
                                         </div>
 
                                         <div className="p-4 bg-muted/50 border-t border-border flex gap-3">
@@ -330,7 +374,7 @@ const CreatePost = () => {
                                         <div className="p-4 bg-muted rounded-full mb-4">
                                             <Wand2 className="h-8 w-8 text-foreground/20" />
                                         </div>
-                                        <p>Caption preview will appear here</p>
+                                        <p>Upload {selectedFiles.length > 0 ? 'images' : 'image'} to see magic preview</p>
                                     </div>
                                 )}
                             </div>

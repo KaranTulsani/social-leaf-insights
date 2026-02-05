@@ -2,6 +2,7 @@ import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useSocialData } from "@/contexts/SocialDataContext";
+import api from "@/services/api";
 import {
   Leaf,
   ArrowLeft,
@@ -100,6 +101,31 @@ const Audience = () => {
   };
 
   const audienceInsights = getAudienceInsights();
+
+  // AI Persona State
+  const [aiPersona, setAiPersona] = useState<any>(null);
+  const [personaLoading, setPersonaLoading] = useState(false);
+
+  // Fetch AI Persona
+  useEffect(() => {
+    const fetchPersona = async () => {
+      if (!realYoutubeData?.channel || personaLoading || aiPersona) return;
+
+      setPersonaLoading(true);
+      try {
+        const session = JSON.parse(localStorage.getItem('session') || '{}');
+        const persona = await api.getAudiencePersona(session.access_token);
+        setAiPersona(persona);
+      } catch (error) {
+        console.error('Failed to fetch AI persona:', error);
+      } finally {
+        setPersonaLoading(false);
+      }
+    };
+
+    fetchPersona();
+  }, [realYoutubeData]);
+
 
   // Activity patterns - simulated based on typical YouTube patterns
   const hourlyActivity = [
@@ -211,43 +237,68 @@ const Audience = () => {
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-2">
                   <h3 className="font-semibold text-lg">AI-Generated Audience Persona</h3>
-                  <span className="text-xs bg-purple-500/20 text-purple-500 px-2 py-0.5 rounded-full">Confidence: 94%</span>
+                  <span className="text-xs bg-purple-500/20 text-purple-500 px-2 py-0.5 rounded-full">
+                    {personaLoading ? 'Analyzing...' : `Confidence: ${aiPersona?.confidence || 94}%`}
+                  </span>
                 </div>
                 <div className="bg-card/50 rounded-lg p-4 border border-purple-500/10">
-                  <p className="text-foreground leading-relaxed">
-                    {audienceInsights ? (
-                      <>
-                        <span className="font-semibold text-purple-500">Your audience from {realYoutubeData?.channel?.title}</span> consists of highly engaged viewers.
-                        With <span className="font-semibold">{formatNumber(audienceInsights.totalLikes)} total likes</span> and
-                        <span className="font-semibold"> {formatNumber(audienceInsights.totalComments)} comments</span> across recent videos,
-                        your content generates strong engagement. Peak activity is during <span className="font-semibold">evening hours (6-10 PM)</span>.
-                        Audience shows <span className="font-semibold">high loyalty</span> with consistent engagement patterns.
-                      </>
-                    ) : (
-                      <>
-                        <span className="font-semibold text-purple-500">Your audience consists of</span> working professionals aged 25-34,
-                        predominantly in tech and creative industries. They engage most actively during <span className="font-semibold">evening hours (7-9 PM)</span> on weekdays,
-                        suggesting they browse after work. They show a strong preference for <span className="font-semibold">educational content</span> and
-                        are <span className="font-semibold">2.4x more likely to save</span> content than the average user, indicating high intent to
-                        revisit and apply learnings.
-                      </>
-                    )}
-                  </p>
-                  <div className="flex flex-wrap gap-2 mt-4">
-                    {audienceInsights ? (
-                      ["🎯 Highly Engaged", "🎬 Video Lovers", "💬 Active Commenters", "❤️ Loyal Fans", "📱 Mobile Viewers"].map((tag) => (
-                        <span key={tag} className="text-xs bg-purple-500/10 text-purple-600 px-2 py-1 rounded-full">
-                          {tag}
-                        </span>
-                      ))
-                    ) : (
-                      ["🎯 Career-focused", "📚 Learners", "💼 Professionals", "🌙 Evening browsers", "💾 Savers"].map((tag) => (
-                        <span key={tag} className="text-xs bg-purple-500/10 text-purple-600 px-2 py-1 rounded-full">
-                          {tag}
-                        </span>
-                      ))
-                    )}
-                  </div>
+                  {personaLoading ? (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <div className="h-4 w-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+                      <span>Analyzing your channel data...</span>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-foreground leading-relaxed">
+                        {aiPersona?.persona_text || (
+                          audienceInsights ? (
+                            <>
+                              <span className="font-semibold text-purple-500">Your audience from {realYoutubeData?.channel?.title}</span> consists of highly engaged viewers.
+                              With <span className="font-semibold">{formatNumber(audienceInsights.totalLikes)} total likes</span> and
+                              <span className="font-semibold"> {formatNumber(audienceInsights.totalComments)} comments</span> across recent videos,
+                              your content generates strong engagement. Peak activity is during <span className="font-semibold">evening hours (6-10 PM)</span>.
+                              Audience shows <span className="font-semibold">high loyalty</span> with consistent engagement patterns.
+                            </>
+                          ) : (
+                            <>
+                              <span className="font-semibold text-purple-500">Your audience consists of</span> working professionals aged 25-34,
+                              predominantly in tech and creative industries. They engage most actively during <span className="font-semibold">evening hours (7-9 PM)</span> on weekdays,
+                              suggesting they browse after work. They show a strong preference for <span className="font-semibold">educational content</span> and
+                              are <span className="font-semibold">2.4x more likely to save</span> content than the average user, indicating high intent to
+                              revisit and apply learnings.
+                            </>
+                          )
+                        )}
+                      </p>
+                      {aiPersona && (
+                        <div className="mt-4 space-y-2 pt-3 border-t border-purple-500/10">
+                          <div className="flex items-start gap-2 text-sm">
+                            <span className="text-green-500 font-semibold">✓ Strength:</span>
+                            <span className="text-muted-foreground">{aiPersona.key_strength}</span>
+                          </div>
+                          <div className="flex items-start gap-2 text-sm">
+                            <span className="text-amber-500 font-semibold">⚠ Improve:</span>
+                            <span className="text-muted-foreground">{aiPersona.key_weakness}</span>
+                          </div>
+                          <div className="flex items-start gap-2 text-sm">
+                            <span className="text-blue-500 font-semibold">→ Next Step:</span>
+                            <span className="text-muted-foreground">{aiPersona.next_action}</span>
+                          </div>
+                        </div>
+                      )}
+                      <div className="flex flex-wrap gap-2 mt-4">
+                        {(aiPersona?.tags || (
+                          audienceInsights ?
+                            ["🎯 Highly Engaged", "🎬 Video Lovers", "💬 Active Commenters", "❤️ Loyal Fans", "📱 Mobile Viewers"] :
+                            ["🎯 Career-focused", "📚 Learners", "💼 Professionals", "🌙 Evening browsers", "💾 Savers"]
+                        )).map((tag: string) => (
+                          <span key={tag} className="text-xs bg-purple-500/10 text-purple-600 px-2 py-1 rounded-full">
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             </div>

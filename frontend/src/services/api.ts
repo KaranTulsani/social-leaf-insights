@@ -56,7 +56,7 @@ export interface PostPreviewResponse {
   hashtags: string[];
   cta: string;
   style: string;
-  optimized_image_path: string;
+  optimized_image_paths: string[];
   auto_post: boolean;
 }
 
@@ -162,11 +162,11 @@ export const api = {
   },
 
   // AI
-  queryAI: (token: string, question: string) =>
+  queryAI: (token: string, question: string, platform?: string, handle?: string) =>
     fetchApi<{ answer: string }>('/api/ai/query', {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ question }),
+      body: JSON.stringify({ question, platform: platform || 'all', handle }),
     }),
 
   getInsights: (token: string) =>
@@ -231,6 +231,12 @@ export const api = {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify({ query }),
+    }),
+
+  // AI Audience Persona
+  getAudiencePersona: (token: string) =>
+    fetchApi<any>('/ai/audience-persona', {
+      headers: { Authorization: `Bearer ${token}` },
     }),
 };
 
