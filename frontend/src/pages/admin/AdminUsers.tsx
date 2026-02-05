@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Search, Ban, Shield, ArrowUpCircle } from "lucide-react";
+import { Search, Ban, Shield, ArrowUpCircle, AlertTriangle, X } from "lucide-react";
 import { toast } from "sonner";
+import { motion } from "framer-motion";
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -18,6 +19,15 @@ interface User {
   created_at: string;
 }
 
+interface ConfirmationModal {
+  isOpen: boolean;
+  title: string;
+  message: string;
+  onConfirm: () => void;
+  confirmText?: string;
+  variant?: 'danger' | 'warning' | 'info';
+}
+
 export default function AdminUsers() {
   const { profile, session } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
@@ -25,6 +35,12 @@ export default function AdminUsers() {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [confirmModal, setConfirmModal] = useState<ConfirmationModal>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => { },
+  });
 
   const fetchUsers = async () => {
     if (!session?.access_token) return;
@@ -66,8 +82,6 @@ export default function AdminUsers() {
   };
 
   const updateUserRole = async (userId: string, newRole: string) => {
-    if (!confirm(`Are you sure you want to change user role to ${newRole}?`)) return;
-
     try {
       const res = await fetch(`${API_URL}/api/admin/users/${userId}/role`, {
         method: "POST",
@@ -82,14 +96,13 @@ export default function AdminUsers() {
 
       toast.success(`User role updated to ${newRole}`);
       fetchUsers(); // Refresh list
+      setConfirmModal({ ...confirmModal, isOpen: false });
     } catch (error) {
       toast.error("Failed to update user role");
     }
   };
 
   const updateUserPlan = async (userId: string, newPlan: string) => {
-    if (!confirm(`Are you sure you want to change user plan to ${newPlan}?`)) return;
-
     try {
       const res = await fetch(`${API_URL}/api/admin/users/${userId}/plan`, {
         method: "POST",
@@ -104,9 +117,14 @@ export default function AdminUsers() {
 
       toast.success(`User plan updated to ${newPlan}`);
       fetchUsers();
+      setConfirmModal({ ...confirmModal, isOpen: false });
     } catch (error) {
       toast.error("Failed to update user plan");
     }
+  };
+
+  const showConfirmation = (config: Omit<ConfirmationModal, 'isOpen'>) => {
+    setConfirmModal({ ...config, isOpen: true });
   };
 
   return (
@@ -174,7 +192,13 @@ export default function AdminUsers() {
                                 variant="ghost"
                                 size="icon"
                                 title="Ban User"
-                                onClick={() => updateUserRole(user.id, 'banned')}
+                                onClick={() => showConfirmation({
+                                  title: 'Ban User',
+                                  message: `Are you sure you want to ban ${user.email}? They will lose access to the platform.`,
+                                  onConfirm: () => updateUserRole(user.id, 'banned'),
+                                  confirmText: 'Ban User',
+                                  variant: 'danger'
+                                })}
                               >
                                 <Ban className="h-4 w-4 text-red-500" />
                               </Button>
@@ -183,7 +207,13 @@ export default function AdminUsers() {
                                 variant="ghost"
                                 size="icon"
                                 title="Unban User"
-                                onClick={() => updateUserRole(user.id, 'user')}
+                                onClick={() => showConfirmation({
+                                  title: 'Unban User',
+                                  message: `Are you sure you want to restore access for ${user.email}?`,
+                                  onConfirm: () => updateUserRole(user.id, 'user'),
+                                  confirmText: 'Unban User',
+                                  variant: 'info'
+                                })}
                               >
                                 <Shield className="h-4 w-4 text-green-500" />
                               </Button>
@@ -193,7 +223,13 @@ export default function AdminUsers() {
                                 variant="ghost"
                                 size="icon"
                                 title="Upgrade to Business"
-                                onClick={() => updateUserPlan(user.id, 'business')}
+                                onClick={() => showConfirmation({
+                                  title: 'Upgrade User Plan',
+                                  message: `Upgrade ${user.email} to Business plan?`,
+                                  onConfirm: () => updateUserPlan(user.id, 'business'),
+                                  confirmText: 'Upgrade',
+                                  variant: 'info'
+                                })}
                               >
                                 <ArrowUpCircle className="h-4 w-4 text-purple-500" />
                               </Button>
@@ -218,6 +254,64 @@ export default function AdminUsers() {
           {/* Pagination Controls could go here */}
         </div>
       </main>
+
+      {/* Custom Confirmation Modal */}
+      {confirmModal.isOpen && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-2xl shadow-2xl max-w-md w-full"
+          >
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${confirmModal.variant === 'danger' ? 'bg-red-100' :
+                    confirmModal.variant === 'warning' ? 'bg-yellow-100' :
+                      'bg-blue-100'
+                  }`}>
+                  <AlertTriangle className={`h-5 w-5 ${confirmModal.variant === 'danger' ? 'text-red-600' :
+                      confirmModal.variant === 'warning' ? 'text-yellow-600' :
+                        'text-blue-600'
+                    }`} />
+                </div>
+                <h3 className="font-semibold text-gray-900">{confirmModal.title}</h3>
+              </div>
+              <button
+                onClick={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="h-5 w-5 text-gray-500" />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="px-6 py-4">
+              <p className="text-gray-700 leading-relaxed">{confirmModal.message}</p>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex gap-3 rounded-b-2xl">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+              >
+                Cancel
+              </Button>
+              <Button
+                className={`flex-1 ${confirmModal.variant === 'danger' ? 'bg-red-600 hover:bg-red-700' :
+                    confirmModal.variant === 'warning' ? 'bg-yellow-600 hover:bg-yellow-700' :
+                      'bg-blue-600 hover:bg-blue-700'
+                  } text-white`}
+                onClick={confirmModal.onConfirm}
+              >
+                {confirmModal.confirmText || 'Confirm'}
+              </Button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }

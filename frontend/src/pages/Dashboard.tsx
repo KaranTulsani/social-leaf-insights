@@ -639,6 +639,21 @@ RECOMMENDATIONS
             </div>
 
             <div className="flex items-center gap-3">
+              {/* AI Post Recommendation Button - Minimalistic */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleTomorrowTip}
+                className="border-green-500/30 text-green-600 hover:bg-green-50 hover:border-green-500 transition-all group"
+              >
+                {loadingTip ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4 mr-2 group-hover:fill-green-500/20" />
+                )}
+                Post Ideas
+              </Button>
+
               <Button variant="outline" size="sm" onClick={handlePdfExport}>
                 <Download className="h-4 w-4 mr-2" />
                 PDF
@@ -1083,62 +1098,91 @@ RECOMMENDATIONS
               </form>
             </motion.div>
 
-            {/* What Should I Post Tomorrow - KILLER FEATURE */}
+            {/* Removed - Button moved to header */}
             <div className="max-w-xl mx-auto w-full pb-32">
-              <Button
-                onClick={handleTomorrowTip}
-                className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 shadow-lg shadow-purple-500/25"
-              >
-                {loadingTip ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
-                What Should I Post Tomorrow?
-              </Button>
 
+              {/* AI Recommendation Modal - Centered */}
               {showTomorrowTip && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="mt-4 p-5 rounded-xl bg-neutral-900/90 border border-white/10 shadow-xl backdrop-blur-md"
-                >
-                  <div className="flex items-center gap-2 mb-4 border-b border-white/10 pb-3">
-                    <Sparkles className="h-5 w-5 text-purple-400" />
-                    <span className="font-semibold text-white">AI Recommendation</span>
-                    <span className="text-xs bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded-full ml-auto border border-purple-500/20">
-                      Smart Pick
-                    </span>
-                  </div>
-
-                  <div className="space-y-3 text-sm min-h-[100px]">
-                    {loadingTip ? (
-                      <div className="flex flex-col items-center justify-center py-8 text-white/50 space-y-2">
-                        <Loader2 className="h-6 w-6 animate-spin text-purple-500" />
-                        <span>Analyzing your metrics...</span>
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto"
+                  >
+                    {/* Modal Header */}
+                    <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between rounded-t-2xl">
+                      <div className="flex items-center gap-2">
+                        <div className="h-10 w-10 rounded-xl bg-green-100 flex items-center justify-center">
+                          <Sparkles className="h-5 w-5 text-green-600" />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-gray-900">AI Recommendation</h3>
+                          <span className="text-xs text-gray-500">Powered by Social Leaf AI</span>
+                        </div>
                       </div>
-                    ) : (
-                      <div className="prose prose-invert prose-sm max-w-none text-gray-200">
-                        <ReactMarkdown>{tomorrowRecommendation || ''}</ReactMarkdown>
+                      <button
+                        onClick={() => setShowTomorrowTip(false)}
+                        className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                      >
+                        <X className="h-5 w-5 text-gray-500" />
+                      </button>
+                    </div>
+
+                    {/* Modal Content */}
+                    <div className="p-6">
+                      {loadingTip ? (
+                        <div className="flex flex-col items-center justify-center py-12 space-y-3">
+                          <Loader2 className="h-8 w-8 animate-spin text-green-600" />
+                          <span className="text-gray-600 font-medium">Analyzing your metrics...</span>
+                          <span className="text-sm text-gray-400">Generating personalized recommendations</span>
+                        </div>
+                      ) : (
+                        <div className="prose prose-gray max-w-none">
+                          <div className="text-gray-800 leading-relaxed">
+                            <ReactMarkdown
+                              components={{
+                                strong: ({ node, ...props }) => <strong className="text-gray-900 font-semibold" {...props} />,
+                                p: ({ node, ...props }) => <p className="text-gray-700 mb-3" {...props} />,
+                                h1: ({ node, ...props }) => <h1 className="text-gray-900 font-bold text-xl mb-3" {...props} />,
+                                h2: ({ node, ...props }) => <h2 className="text-gray-900 font-bold text-lg mb-2" {...props} />,
+                                h3: ({ node, ...props }) => <h3 className="text-gray-900 font-semibold text-base mb-2" {...props} />,
+                              }}
+                            >
+                              {tomorrowRecommendation || ''}
+                            </ReactMarkdown>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Modal Footer */}
+                    {!loadingTip && tomorrowRecommendation && (
+                      <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4 flex gap-3 rounded-b-2xl">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="flex-1"
+                          onClick={() => setShowTomorrowTip(false)}
+                        >
+                          Close
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                          onClick={() => {
+                            window.open('https://calendar.google.com/', '_blank');
+                          }}
+                        >
+                          <Calendar className="h-4 w-4 mr-2" />
+                          Schedule Post
+                        </Button>
                       </div>
                     )}
-                  </div>
-
-                  {!loadingTip && tomorrowRecommendation && (
-                    <div className="flex gap-2 mt-4 pt-3 border-t border-white/10">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="text-white/60 hover:text-white hover:bg-white/10 ml-auto"
-                        onClick={() => {
-                          // Simple Calendar Link for now
-                          window.open('https://calendar.google.com/', '_blank');
-                        }}
-                      >
-                        <Calendar className="h-3.5 w-3.5 mr-1" />
-                        Schedule
-                      </Button>
-                    </div>
-                  )}
-                </motion.div>
+                  </motion.div>
+                </div>
               )}
             </div>
+
 
             {/* Recent Posts */}
             <motion.div
