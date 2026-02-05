@@ -235,10 +235,12 @@ export const api = {
     }),
 
   // AI Audience Persona
-  getAudiencePersona: (token: string) =>
-    fetchApi<any>('/api/ai/audience-persona', {
+  getAudiencePersona: (token: string) => {
+    if (!token) return Promise.reject(new Error("No auth token provided"));
+    return fetchApi<any>('/api/ai/audience-persona', {
       headers: { Authorization: `Bearer ${token}` },
-    }),
+    });
+  },
 };
 
 export default api;
