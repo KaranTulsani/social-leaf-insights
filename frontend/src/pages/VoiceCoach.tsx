@@ -7,6 +7,7 @@ import { Mic, Play, Pause, Sparkles, Loader2, Volume2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/components/auth/AuthContext";
+import { API_BASE_URL } from "@/services/api";
 
 const VoiceCoach = () => {
   const { toast } = useToast();
@@ -33,7 +34,7 @@ const VoiceCoach = () => {
       // Get token from session
       const token = session?.access_token;
 
-      const response = await fetch("http://localhost:8000/api/voice-coach/analyze", {
+      const response = await fetch(`${API_BASE_URL}/api/voice-coach/analyze`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -71,7 +72,7 @@ const VoiceCoach = () => {
     try {
       const token = session?.access_token;
 
-      const response = await fetch("http://localhost:8000/api/voice-coach/speech", {
+      const response = await fetch(`${API_BASE_URL}/api/voice-coach/speech`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

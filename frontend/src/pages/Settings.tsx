@@ -34,6 +34,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { API_BASE_URL } from "@/services/api";
 
 // Settings type
 interface AppSettings {
@@ -166,7 +167,7 @@ const Settings = () => {
 
   const fetchConnectionStatus = async () => {
     try {
-      const response = await fetch("http://localhost:8000/auth/status");
+      const response = await fetch(`${API_BASE_URL}/auth/status`);
       if (response.ok) {
         const status = await response.json(); // Parse the backend response
         const currentLocal = loadConnections(); // Get fresh local state

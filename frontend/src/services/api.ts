@@ -3,7 +3,7 @@
  * Connects frontend to FastAPI backend
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 console.log('🔌 API URL:', API_BASE_URL); // Debugging connection
 
 // Types

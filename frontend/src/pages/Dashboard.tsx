@@ -55,6 +55,7 @@ import { useAuth } from "@/components/auth/AuthContext";
 import api from "@/services/api";
 import { generateDashboardPDF } from "@/lib/pdfGenerator";
 import { toast } from "sonner";
+import { API_BASE_URL } from "@/services/api";
 
 const engagementData = [
   { name: "Jan", instagram: 4000, twitter: 2400, linkedin: 1800 },
@@ -169,7 +170,7 @@ const Dashboard = () => {
     // Fetch demo dashboard for fallback insights (separate from context-managed data)
     const fetchDemoInsights = async () => {
       try {
-        const response = await fetch('http://localhost:8000/demo/full-dashboard');
+        const response = await fetch(`${API_BASE_URL}/demo/full-dashboard`);
         if (response.ok) {
           const data = await response.json();
           setDashboardData(data);
@@ -582,8 +583,7 @@ RECOMMENDATIONS
 
   const fetchSystemStatus = async () => {
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-      const res = await fetch(`${API_URL}/api/system/status`);
+      const res = await fetch(`${API_BASE_URL}/api/system/status`);
       if (res.ok) {
         setSystemStatus(await res.json());
       }

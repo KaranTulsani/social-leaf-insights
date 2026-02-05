@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/components/ui/use-toast";
 import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/components/auth/AuthContext";
+import { API_BASE_URL } from "@/services/api";
 
 interface HookAnalysis {
   frame_index: number;
@@ -76,7 +77,7 @@ const HookDetector = () => {
       const formData = new FormData();
       formData.append("video", videoFile);
 
-      const response = await fetch("http://localhost:8000/api/hooks/analyze", {
+      const response = await fetch(`${API_BASE_URL}/api/hooks/analyze`, {
         method: "POST",
         headers: {
           // Note: Do not set Content-Type for FormData, the browser does it

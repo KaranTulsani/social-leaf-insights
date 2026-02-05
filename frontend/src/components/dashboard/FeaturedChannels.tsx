@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 import { Youtube, Eye, Users, PlayCircle, ExternalLink } from "lucide-react";
+import { API_BASE_URL } from "@/services/api";
 import { Button } from "@/components/ui/button";
 
 interface ChannelStats {
@@ -52,7 +53,7 @@ export const FeaturedChannels = () => {
     const fetchFeaturedChannels = async () => {
       try {
         setIsLoading(true);
-        const response = await fetch("http://localhost:8000/api/youtube/featured");
+        const response = await fetch(`${API_BASE_URL}/api/youtube/featured`);
         if (!response.ok) throw new Error("Failed to fetch channels");
         const data = await response.json();
         // Only show first 2 channels for cleaner UI

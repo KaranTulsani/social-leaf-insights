@@ -128,7 +128,7 @@ interface SocialDataContextType {
 
 const SocialDataContext = createContext<SocialDataContextType | undefined>(undefined);
 
-const API_BASE = 'http://localhost:8000';
+import { API_BASE_URL as API_BASE } from '../services/api';
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
 
 export const SocialDataProvider: React.FC<{ children: ReactNode }> = ({ children }) => {

@@ -45,6 +45,7 @@ import {
   PolarRadiusAxis,
   Radar,
 } from "recharts";
+import { API_BASE_URL } from "@/services/api";
 
 const platformColors = {
   instagram: "#E4405F",
@@ -91,7 +92,7 @@ const Analytics = () => {
 
       // 2. Check Backend Status (Global API Keys)
       try {
-        const response = await fetch("http://localhost:8000/auth/status");
+        const response = await fetch(`${API_BASE_URL}/auth/status`);
         if (response.ok) {
           const status = await response.json();
 
@@ -169,8 +170,8 @@ const Analytics = () => {
     // setIsLoading(true);
     try {
       const [dashboard, comparison] = await Promise.all([
-        fetch("http://localhost:8000/demo/full-dashboard").then((r) => r.json()),
-        fetch("http://localhost:8000/demo/content-comparison").then((r) => r.json()),
+        fetch(`${API_BASE_URL}/demo/full-dashboard`).then((r) => r.json()),
+        fetch(`${API_BASE_URL}/demo/content-comparison`).then((r) => r.json()),
       ]);
       setAnalyticsData(dashboard);
       setComparisonData(comparison);
