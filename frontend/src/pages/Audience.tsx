@@ -114,8 +114,10 @@ const Audience = () => {
       setPersonaLoading(true);
       try {
         const session = JSON.parse(localStorage.getItem('session') || '{}');
-        const persona = await api.getAudiencePersona(session.access_token);
-        setAiPersona(persona);
+        if (session?.access_token) {
+          const persona = await api.getAudiencePersona(session.access_token);
+          setAiPersona(persona);
+        }
       } catch (error) {
         console.error('Failed to fetch AI persona:', error);
       } finally {
