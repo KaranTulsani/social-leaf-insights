@@ -118,31 +118,56 @@ const ChoosePlan = () => {
     setIsLoading(true);
 
     try {
-      // Save plan to backend
-      const response = await fetch(`${API_URL}/api/users/me/plan`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${session?.access_token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ plan: planId }),
-      });
+      if (planId === 'starter') {
+        // Save starter plan to backend
+        const response = await fetch(`${API_URL}/api/users/me/plan`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${session?.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ plan: planId }),
+        });
 
-      if (!response.ok) {
-        throw new Error('Failed to save plan');
+        if (!response.ok) {
+          throw new Error('Failed to save plan');
+        }
+
+        // Refresh profile to get updated plan
+        await refreshProfile();
+
+        // Stop loading and show connect prompt for starter plan
+        setIsLoading(false);
+        setShowConnectPrompt(true);
+
+      } else {
+        // Stripe Checkout for paid plans (Professional/Business)
+        const response = await fetch(`${API_URL}/api/payment/create-checkout-session`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session?.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ plan_id: planId }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.detail || 'Failed to initiate checkout');
+        }
+
+        const data = await response.json();
+        if (data.url) {
+          // Redirect to Stripe Checkout for payment
+          window.location.href = data.url;
+        } else {
+          throw new Error('No checkout URL received');
+        }
       }
 
-      // Refresh profile to get updated plan
-      await refreshProfile();
-
-      // Stop loading locally so we can show the prompt
-      setIsLoading(false);
-
-      // Show connect prompt instead of immediate loader
-      setShowConnectPrompt(true);
-
     } catch (error) {
-      toast.error('Failed to select plan. Please try again.');
+      console.error(error);
+      toast.error(error instanceof Error ? error.message : 'Failed to process request. Please try again.');
       setIsLoading(false);
     }
   };
@@ -150,19 +175,8 @@ const ChoosePlan = () => {
   const handleConnectPromptResult = (connect: boolean) => {
     setShowConnectPrompt(false);
 
-    // Determine destination
-    let dest = '/dashboard';
-    if (connect) {
-      dest = '/connect-accounts';
-    } else if (selectedPlan !== 'starter') {
-      // If paid plan and they skip, they still need to pay?
-      // "just before dashboard" implies after everything else.
-      // But paying comes before dashboard.
-      // If payment is required, we should probably send them to payment FIRST.
-      // But the request said "after selection of plan".
-      // Let's stick to the plan: if paid -> payment.
-      dest = '/payment';
-    }
+    // Determine destination (only for starter plan)
+    const dest = connect ? '/connect-accounts' : '/dashboard';
 
     setLoaderDestination(dest);
     setShowLoader(true);
