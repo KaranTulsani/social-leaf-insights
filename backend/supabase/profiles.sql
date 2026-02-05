@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS profiles (
   plan TEXT DEFAULT 'starter' CHECK (plan IN ('starter', 'professional', 'business')),
   plan_status TEXT DEFAULT 'active' CHECK (plan_status IN ('active', 'trial', 'expired', 'cancelled')),
   trial_ends_at TIMESTAMPTZ,
-  role TEXT DEFAULT 'user' CHECK (role IN ('user', 'developer')),
+  role TEXT DEFAULT 'user' CHECK (role IN ('user', 'admin', 'banned')),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -30,6 +30,26 @@ CREATE POLICY "Users can update own profile"
 CREATE POLICY "Users can insert own profile" 
   ON profiles FOR INSERT 
   WITH CHECK (auth.uid() = id);
+
+-- Policy: Admins can view all profiles
+CREATE POLICY "Admins can view all profiles"
+  ON profiles FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE id = auth.uid() AND role = 'admin'
+    )
+  );
+
+-- Policy: Admins can update all profiles
+CREATE POLICY "Admins can update all profiles"
+  ON profiles FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE id = auth.uid() AND role = 'admin'
+    )
+  );
 
 -- Function to auto-update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()

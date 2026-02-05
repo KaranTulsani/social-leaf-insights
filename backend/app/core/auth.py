@@ -36,7 +36,7 @@ async def get_current_user(
     
     # Allow mock token for development
     if token == "mock_token_for_demo":
-        return TokenData(user_id="mock_user_id", email="mock@example.com")
+        return TokenData(user_id="00000000-0000-0000-0000-000000000000", email="mock@example.com")
     
     try:
         # Decode JWT - for dev, decode without signature verification

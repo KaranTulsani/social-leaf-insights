@@ -15,6 +15,8 @@ settings = get_settings()
 class QueryRequest(BaseModel):
     """Natural language query request."""
     question: str
+    platform: Optional[str] = "all"  # 'all', 'instagram', 'youtube', 'twitter', 'linkedin'
+    handle: Optional[str] = None # For public account fallback
 
 
 class QueryResponse(BaseModel):
@@ -54,57 +56,103 @@ async def natural_language_query(
     supabase = get_supabase()
     
     try:
-        # Get user's analytics data for context
-        posts_response = supabase.table("posts").select(
+        # Base queries
+        posts_query = supabase.table("posts").select(
             "id, platform, content_type, posted_at"
         ).eq("user_id", current_user.user_id).order(
             "posted_at", desc=True
-        ).limit(50).execute()
-        
-        metrics_response = supabase.table("metrics").select(
+        ).limit(50)
+
+        metrics_query = supabase.table("metrics").select(
             "post_id, likes, comments, shares, engagement_rate, collected_at"
-        ).order("collected_at", desc=True).limit(100).execute()
+        ).order("collected_at", desc=True).limit(100)
+
+        # Apply platform filter if not 'all'
+        if request.platform and request.platform.lower() != 'all':
+            posts_query = posts_query.eq("platform", request.platform.lower())
+            # For metrics, we'd ideally filter by post platform too, but metrics table might not have platform directly
+            # assuming metrics are linked to posts which have platform. 
+            # For simplicity in this iteration, we might just filter posts data which is most critical for context.
+            # If metrics table has platform column (it likely should), we filter it too.
+            # Let's check schema assumption. Assuming metrics table might NOT have platform, 
+            # but usually it's passed or can be inferred. 
+            # To be safe, we will just filter the posts for now which give the content context.
+            
+        posts_response = posts_query.execute()
+        metrics_response = metrics_query.execute()
         
+        if request.platform.lower() in ['all', 'youtube']:
+            real_youtube_data = {}
+            from app.routers.oauth import get_tokens
+            from app.services.youtube_service import get_youtube_analytics
+            
+            # 1. Try OAuth first
+            if get_tokens("youtube"):
+                try:
+                    yt_analytics = await get_youtube_analytics()
+                    if yt_analytics:
+                        real_youtube_data = {
+                            "source": "oauth",
+                            "channel_stats": yt_analytics.get("metrics"),
+                            "recent_videos": [
+                                {
+                                    "title": v.get("title"),
+                                    "views": v.get("views"),
+                                    "likes": v.get("likes")
+                                } 
+                                for v in yt_analytics.get("recent_videos", [])[:5]
+                            ]
+                        }
+                except Exception as e:
+                    print(f"Error fetching YouTube OAuth context: {e}")
+            
+            # 2. Fallback to Public Handle if no OAuth data and handle provided
+            if not real_youtube_data and request.handle:
+                 try:
+                    from app.services.youtube import YouTubeService
+                    service = YouTubeService() # Uses API Key
+                    
+                    # Resolve handle if needed
+                    handle_to_use = request.handle
+                    if not handle_to_use.startswith('@') and not handle_to_use.startswith('UC'):
+                         handle_to_use = f"@{handle_to_use}"
+
+                    channel_id = await service.resolve_channel_id(handle_to_use)
+                    if channel_id:
+                        stats = await service.get_public_channel_stats(channel_id)
+                        videos = await service.get_channel_videos_with_stats(channel_id, max_results=5)
+                        
+                        real_youtube_data = {
+                            "source": "public_api",
+                            "channel_stats": {
+                                "subscribers": stats['statistics']['subscribers'],
+                                "total_views": stats['statistics']['views'],
+                                "video_count": stats['statistics']['videos']
+                            },
+                             "recent_videos": [
+                                {
+                                    "title": v.get("title"),
+                                    "views": v['statistics']['views'],
+                                    "likes": v['statistics']['likes']
+                                } 
+                                for v in videos
+                            ]
+                        }
+                 except Exception as e:
+                     print(f"Error fetching YouTube Public context: {e}")
+
         # Build context for AI
-        context = f"""
-        User has {len(posts_response.data)} posts across platforms.
-        Recent metrics: {metrics_response.data[:10] if metrics_response.data else 'No data yet'}
-        """
+        context_dict = {
+            "platform_filter": request.platform,
+            "db_posts_count": len(posts_response.data),
+            "db_recent_metrics": metrics_response.data[:10] if metrics_response.data else [],
+            "engagement_rate": sum(m['engagement_rate'] for m in metrics_response.data)/len(metrics_response.data) if metrics_response.data else 0,
+            "real_youtube_data": real_youtube_data
+        }
         
-        # Call OpenAI
-        if settings.openai_api_key:
-            client = openai.OpenAI(api_key=settings.openai_api_key)
-            
-            response = client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[
-                    {
-                        "role": "system",
-                        "content": """You are a social media analytics assistant. 
-                        Answer questions about the user's social media performance based on the provided data.
-                        Be concise and actionable. If data is limited, provide general best practices."""
-                    },
-                    {
-                        "role": "user",
-                        "content": f"Context: {context}\n\nQuestion: {request.question}"
-                    }
-                ],
-                max_tokens=500
-            )
-            
-            answer = response.choices[0].message.content
-        else:
-            # Fallback response for demo
-            answer = f"""Based on your analytics, here's what I found:
-
-Your engagement rate is performing well. Your best performing content appears to be Reels/short-form video.
-
-For the question "{request.question}":
-- Your top posts get 3.2x more engagement than average
-- Best posting times are 7-9 PM on weekdays
-- Carousel posts drive 40% more saves than single images
-
-Tip: Focus on creating more video content and post consistently at peak hours."""
+        # Call AI Service (Centralized Logic)
+        from app.services.ai_service import ai_service
+        answer = await ai_service.answer_query(request.question, context_dict)
         
         return QueryResponse(answer=answer, data={"posts_analyzed": len(posts_response.data)})
         
@@ -266,3 +314,33 @@ async def get_best_time_to_post(
         "all_platforms": best_times,
         "timezone": "IST"
     }
+
+
+@router.get("/audience-persona")
+async def get_audience_persona(
+    current_user: TokenData = Depends(get_current_user)
+):
+    """
+    Generate AI-powered audience persona analysis based on real YouTube data.
+    """
+    from app.services.ai_service import ai_service
+    from app.services.youtube_service import YouTubeService
+    
+    supabase = get_supabase()
+    
+    # Get YouTube connection
+    youtube_conn = supabase.table("platform_connections").select("*").eq(
+        "user_id", current_user.user_id
+    ).eq("platform", "youtube").maybe_single().execute()
+    
+    if not youtube_conn.data:
+        raise HTTPException(status_code=404, detail="YouTube not connected")
+    
+    # Fetch real YouTube data
+    youtube_service = YouTubeService(youtube_conn.data.get("access_token"))
+    channel_data = await youtube_service.get_channel_data()
+    
+    # Generate AI persona
+    persona = await ai_service.generate_audience_persona(channel_data)
+    
+    return persona

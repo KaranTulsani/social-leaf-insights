@@ -15,7 +15,7 @@ load_dotenv()
 
 # Get API keys
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY_SECONDARY") or os.getenv("GEMINI_API_KEY")  # Use secondary key, fallback to primary
 
 # CONFIRMED WORKING free VLM models on OpenRouter (NO :free suffix!)
 OPENROUTER_VLM_MODELS = [
@@ -139,9 +139,9 @@ def analyze_hook_with_gemini(frames: List[Tuple[float, str]]) -> Optional[dict]:
         for i, (timestamp, b64_image) in enumerate(limited_frames):
             content_parts.append({"mime_type": "image/jpeg", "data": b64_image})
         
-        # Use gemini-1.5-flash ONLY (stable, not 2.0)
-        print("DEBUG: Calling gemini-1.5-flash...")
-        model = genai.GenerativeModel("gemini-1.5-flash")
+        # Use models/gemini-flash-latest (confirmed working)
+        print("DEBUG: Calling models/gemini-flash-latest...")
+        model = genai.GenerativeModel("models/gemini-flash-latest")
         
         response = model.generate_content(
             content_parts,
@@ -182,7 +182,7 @@ def generate_text_only_fallback(frames: List[Tuple[float, str]]) -> dict:
         "frame_index": 0,
         "timestamp_sec": 0,
         "hook_score": 65,
-        "reason": "Opening frame selected as default hook. For accurate analysis, please configure OPENROUTER_API_KEY.",
+        "reason": "Opening frame selected as default hook. For accurate analysis, please ensure GEMINI_API_KEY is configured.",
         "visual_elements": ["opening shot"],
         "improvement_tip": "Add text overlay or strong emotion in first 2 seconds",
         "frame_image": frames[0][1] if frames else ""
@@ -195,7 +195,7 @@ def analyze_hook(
 ) -> Optional[dict]:
     """
     Analyze frames to find the best hook moment.
-    Priority: OpenRouter (Qwen-VL) -> Gemini 1.5 Flash -> Text-only fallback
+    Priority: Gemini Flash -> OpenRouter (Qwen-VL) -> Text-only fallback
     """
     if not frames:
         raise ValueError("No frames provided for analysis")
@@ -203,15 +203,15 @@ def analyze_hook(
     # Limit to MAX_FRAMES (3) for optimal performance
     limited_frames = frames[:MAX_FRAMES]
     
-    # Try OpenRouter first (free Qwen-VL)
-    if OPENROUTER_API_KEY:
-        result = analyze_hook_with_openrouter(limited_frames)
+    # Try Gemini first (you have a working API key)
+    if GEMINI_API_KEY:
+        result = analyze_hook_with_gemini(limited_frames)
         if result:
             return result
     
-    # Fallback to Gemini 1.5 Flash
-    if GEMINI_API_KEY:
-        result = analyze_hook_with_gemini(limited_frames)
+    # Fallback to OpenRouter if available
+    if OPENROUTER_API_KEY:
+        result = analyze_hook_with_openrouter(limited_frames)
         if result:
             return result
     

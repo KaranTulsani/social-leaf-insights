@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import ReactMarkdown from 'react-markdown';
 import { useSocialData } from "@/contexts/SocialDataContext";
 import {
   Leaf,
@@ -28,10 +29,13 @@ import {
   Youtube,
   Megaphone,
   ArrowRight,
+  Loader2,
+  X,
   RefreshCw
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   AreaChart,
   Area,
@@ -76,29 +80,7 @@ const recentPosts = [
   { id: 4, platform: "instagram", title: "Behind the Scenes Reel", likes: 3456, comments: 345, shares: 234 },
 ];
 
-const aiInsights = [
-  {
-    type: "tip",
-    message: "Your Reels perform 3.2x better than static posts due to higher algorithm priority and watch time.",
-    reason: "Based on 45 posts analyzed",
-    confidence: 92,
-    action: "View Reel Analytics",
-  },
-  {
-    type: "alert",
-    message: "Engagement dropped 15% on Twitter due to lower posting frequency and off-peak posting times.",
-    reason: "Compared to last 30 days",
-    confidence: 88,
-    action: "Optimize Schedule",
-  },
-  {
-    type: "success",
-    message: "Your carousel about 'Industry Trends' had highest reach (45K) because of strong hook and trending topic.",
-    reason: "Top 1% of your content",
-    confidence: 95,
-    action: "Create Similar",
-  },
-];
+const aiInsights = [];
 
 import { ConnectAccountsModal } from "@/components/dashboard/ConnectAccountsModal";
 import { FeaturedChannels } from "@/components/dashboard/FeaturedChannels";
@@ -110,7 +92,10 @@ const Dashboard = () => {
   const [showConnectModal, setShowConnectModal] = useState(false);
   const [isAiTyping, setIsAiTyping] = useState(false);
   const [showTomorrowTip, setShowTomorrowTip] = useState(false);
+  const [tomorrowRecommendation, setTomorrowRecommendation] = useState<string | null>(null);
+  const [loadingTip, setLoadingTip] = useState(false);
   const [showIdeas, setShowIdeas] = useState(false);
+  const [selectedPlatform, setSelectedPlatform] = useState("all");
 
   const [userName, setUserName] = useState("User");
   const [userInitials, setUserInitials] = useState("U");
@@ -519,7 +504,15 @@ RECOMMENDATIONS
     setIsAiTyping(true);
 
     try {
-      const response = await api.queryAI(session.access_token, aiQuery);
+      // Extract YouTube handle if available (for Public Handle fallback)
+      let ytHandle = undefined;
+      if (selectedPlatform === 'youtube' || selectedPlatform === 'all') {
+        // @ts-ignore
+        ytHandle = realYoutubeData?.account?.username || connections?.youtube?.publicHandle;
+        if (ytHandle) ytHandle = ytHandle.replace('@', '');
+      }
+
+      const response = await api.queryAI(session.access_token, aiQuery, selectedPlatform, ytHandle);
 
       // Typing animation for the real response
       const answer = response.answer || "I couldn't generate an answer at this time.";
@@ -539,7 +532,21 @@ RECOMMENDATIONS
     }
   };
 
-  const handleTomorrowTip = () => {
+  const handleTomorrowTip = async () => {
+    if (!showTomorrowTip && !tomorrowRecommendation) {
+      setLoadingTip(true);
+      try {
+        const prompt = "Analyze my data and suggest exactly ONE high-performing post idea for tomorrow. Return ONLY the following format:\n\n**Platform**: [Platform]\n**Format**: [Format]\n**Best Time**: [Time]\n**Topic**: [Topic]\n**Why**: [Brief reason]";
+        // @ts-ignore
+        const res = await api.queryAI(session?.access_token || '', prompt, 'all');
+        setTomorrowRecommendation(res.answer);
+      } catch (e) {
+        console.error(e);
+        setTomorrowRecommendation("Could not generate tip. Please try again.");
+      } finally {
+        setLoadingTip(false);
+      }
+    }
     setShowTomorrowTip(!showTomorrowTip);
   };
 
@@ -632,6 +639,21 @@ RECOMMENDATIONS
             </div>
 
             <div className="flex items-center gap-3">
+              {/* AI Post Recommendation Button - Minimalistic */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleTomorrowTip}
+                className="border-green-500/30 text-green-600 hover:bg-green-50 hover:border-green-500 transition-all group"
+              >
+                {loadingTip ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4 mr-2 group-hover:fill-green-500/20" />
+                )}
+                Post Ideas
+              </Button>
+
               <Button variant="outline" size="sm" onClick={handlePdfExport}>
                 <Download className="h-4 w-4 mr-2" />
                 PDF
@@ -989,192 +1011,178 @@ RECOMMENDATIONS
           <FeaturedChannels />
 
           {/* AI Insights & Recent Posts */}
-          <div className="grid lg:grid-cols-2 gap-6">
+          <div className="flex flex-col-reverse gap-6 pb-40">
             {/* AI Query Interface */}
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 100 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.6 }}
-              className="bg-dark rounded-2xl p-6 text-white"
+              transition={{ duration: 0.5, delay: 0.2 }}
+              className="fixed bottom-6 inset-x-0 mx-auto w-[95%] max-w-3xl z-50 bg-neutral-900/40 backdrop-blur-xl backdrop-saturate-150 border border-white/10 rounded-[2rem] p-4 shadow-2xl"
             >
-              <div className="flex items-center gap-2 mb-6">
-                <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-                  <Sparkles className="h-4 w-4 text-primary-foreground" />
-                </div>
-                <h3 className="font-display text-lg font-semibold">AI Insights</h3>
-              </div>
-
-              {/* AI Insights List - Enhanced with confidence and actions */}
-              <div className="space-y-3 mb-6">
-                {aiInsights.map((insight, index) => (
-                  <div key={index} className="p-3 rounded-xl bg-white/5 border border-white/10">
-                    <div className="flex items-start justify-between mb-2">
-                      <p className="text-sm text-white/90 flex-1">{insight.message}</p>
-                      <span className="text-xs bg-white/10 text-white/60 px-2 py-0.5 rounded-full ml-2 shrink-0">
-                        {insight.confidence}%
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between mt-2">
-                      <span className="text-xs text-white/40">{insight.reason}</span>
-                      <button
-                        onClick={() => handleInsightAction(insight.action)}
-                        className="text-xs text-primary hover:text-primary/80 font-medium"
-                      >
-                        {insight.action} →
-                      </button>
-                    </div>
+              {/* Response Pop-up (Floats above the bar) */}
+              {aiResponse && (
+                <div className="absolute bottom-[calc(100%+1rem)] left-0 right-0 max-h-[60vh] overflow-y-auto p-6 bg-black/80 backdrop-blur-xl border border-white/10 rounded-[2rem] shadow-2xl">
+                  <button
+                    onClick={() => setAiResponse(null)}
+                    className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white/60 hover:text-white transition-colors z-10"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                  <div className="prose prose-invert prose-base max-w-none text-white/90">
+                    <ReactMarkdown
+                      components={{
+                        table: ({ node, ...props }) => <div className="overflow-x-auto my-4"><table className="w-full text-left border-collapse" {...props} /></div>,
+                        thead: ({ node, ...props }) => <thead className="bg-white/10" {...props} />,
+                        th: ({ node, ...props }) => <th className="p-2 border border-white/20 font-semibold" {...props} />,
+                        td: ({ node, ...props }) => <td className="p-2 border border-white/20" {...props} />,
+                        strong: ({ node, ...props }) => <strong className="text-primary font-bold" {...props} />,
+                        h2: ({ node, ...props }) => <h2 className="text-lg font-bold mt-4 mb-2 text-white" {...props} />,
+                        h3: ({ node, ...props }) => <h3 className="text-md font-semibold mt-3 mb-1 text-white/90" {...props} />
+                      }}
+                    >
+                      {aiResponse}
+                    </ReactMarkdown>
                   </div>
-                ))}
-              </div>
+                </div>
+              )}
 
-              {/* Query Input */}
-              <form onSubmit={handleAiQuery} className="relative">
-                <Input
-                  type="text"
-                  placeholder="Ask about your analytics..."
-                  value={aiQuery}
-                  onChange={(e) => setAiQuery(e.target.value)}
-                  className="bg-white/10 border-white/20 text-white placeholder:text-white/40 pr-12"
-                />
+              <form onSubmit={handleAiQuery} className="flex items-end gap-3 px-2">
+                <div className="h-10 w-8 flex items-center justify-center text-green-600 shrink-0 pb-1">
+                  <Sparkles className="h-6 w-6" fill="currentColor" />
+                </div>
+
+                <div className="flex-1 min-w-0 bg-white/5 rounded-2xl border border-white/10 focus-within:border-primary/50 focus-within:bg-white/10 transition-colors flex items-center">
+                  <Textarea
+                    placeholder={`Ask AI about your ${selectedPlatform === 'all' ? 'social media' : selectedPlatform}...`}
+                    value={aiQuery}
+                    onChange={(e) => setAiQuery(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleAiQuery(e);
+                      }
+                    }}
+                    className="border-none focus-visible:ring-0 bg-transparent min-h-[44px] h-[44px] max-h-[120px] py-2.5 px-4 resize-none text-black placeholder:text-gray-700 leading-relaxed w-full font-medium"
+                  />
+
+                  {/* Platform Selector (Icon style or minimal) */}
+                  <div className="relative pr-2 border-l border-white/10 ml-1">
+                    <select
+                      value={selectedPlatform}
+                      onChange={(e) => setSelectedPlatform(e.target.value)}
+                      className="bg-transparent text-white/60 text-xs py-1 pl-2 pr-6 outline-none cursor-pointer hover:text-white"
+                      style={{ appearance: 'none' }}
+                    >
+                      <option value="all" className="bg-slate-900">All</option>
+                      <option value="instagram" className="bg-slate-900">Insta</option>
+                      <option value="youtube" className="bg-slate-900">YT</option>
+                      <option value="twitter" className="bg-slate-900">X</option>
+                      <option value="linkedin" className="bg-slate-900">In</option>
+                    </select>
+                    <ChevronDown className="absolute right-0 top-1/2 -translate-y-1/2 h-3 w-3 text-white/40 pointer-events-none" />
+                  </div>
+                </div>
+
                 <Button
                   type="submit"
                   size="icon"
-                  className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8"
+                  disabled={isAiTyping || !aiQuery.trim()}
+                  className="h-11 w-11 rounded-full bg-primary hover:bg-primary/90 text-white shrink-0 shadow-lg shadow-primary/25 transition-all hover:scale-105 active:scale-95"
                 >
-                  <Send className="h-4 w-4" />
+                  {isAiTyping ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <ArrowRight className="h-5 w-5" />
+                  )}
                 </Button>
               </form>
-
-              {aiResponse && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="mt-4 p-4 rounded-xl bg-primary/20 border border-primary/30"
-                >
-                  <p className="text-sm text-white/90 whitespace-pre-line">{aiResponse}</p>
-                </motion.div>
-              )}
-
-              {/* What Should I Post Tomorrow - KILLER FEATURE */}
-              <Button
-                onClick={handleTomorrowTip}
-                className="w-full mt-4 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
-              >
-                <Sparkles className="h-4 w-4 mr-2" />
-                What Should I Post Tomorrow?
-              </Button>
-
-              {showTomorrowTip && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="mt-4 p-4 rounded-xl bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30"
-                >
-                  <div className="flex items-center gap-2 mb-3">
-                    <Sparkles className="h-5 w-5 text-purple-400" />
-                    <span className="font-semibold text-white">AI Recommendation</span>
-                    <span className="text-xs bg-purple-500/30 text-purple-300 px-2 py-0.5 rounded-full ml-auto">
-                      Confidence: 94%
-                    </span>
-                  </div>
-                  <div className="space-y-2 text-sm">
-                    <p className="text-white/80">📱 <strong>Platform:</strong> Instagram</p>
-                    <p className="text-white/80">🎬 <strong>Format:</strong> Reel (15-30 seconds)</p>
-                    <p className="text-white/80">⏰ <strong>Best Time:</strong> 7:00 PM IST (Thursday)</p>
-                    <p className="text-white/80">📝 <strong>Caption Style:</strong> Educational with hook</p>
-                    <p className="text-white/80">🏷️ <strong>Topic:</strong> Behind-the-scenes or Tutorial</p>
-                  </div>
-                  <div className="flex gap-2 mt-3">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="text-white border-white/30 hover:bg-white/10"
-                      onClick={() => {
-                        // Get next Thursday at 7 PM IST
-                        const now = new Date();
-                        const daysUntilThursday = (4 - now.getDay() + 7) % 7 || 7;
-                        const nextThursday = new Date(now);
-                        nextThursday.setDate(now.getDate() + daysUntilThursday);
-                        nextThursday.setHours(19, 0, 0, 0);
-
-                        const endTime = new Date(nextThursday);
-                        endTime.setHours(20, 0, 0, 0);
-
-                        // Format for Google Calendar
-                        const formatDate = (d: Date) => d.toISOString().replace(/-|:|\.\d{3}/g, '').slice(0, 15) + 'Z';
-
-                        const title = encodeURIComponent('📱 Post Instagram Reel - Social Leaf');
-                        const details = encodeURIComponent(`AI-Recommended Post
-
-🎬 Format: Reel (15-30 seconds)
-📝 Caption Style: Educational with hook
-🏷️ Topic: Behind-the-scenes or Tutorial
-
-Tips:
-• Use trending audio
-• Strong hook in first 3 seconds
-• Add call-to-action at end
-
-Generated by Social Leaf AI (94% confidence)`);
-                        const location = encodeURIComponent('Instagram');
-
-                        const calendarUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${formatDate(nextThursday)}/${formatDate(endTime)}&details=${details}&location=${location}`;
-
-                        window.open(calendarUrl, '_blank');
-                      }}
-                    >
-                      <Calendar className="h-3.5 w-3.5 mr-1" />
-                      Schedule in Google Calendar
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="text-white border-white/30 hover:bg-white/10"
-                      onClick={() => setShowIdeas(true)}
-                    >
-                      Get Ideas
-                    </Button>
-                  </div>
-                </motion.div>
-              )}
-
-              {/* Ideas Modal */}
-              {showIdeas && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="mt-4 p-4 rounded-xl bg-gradient-to-r from-blue-500/20 to-cyan-500/20 border border-blue-500/30"
-                >
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <Sparkles className="h-5 w-5 text-blue-400" />
-                      <span className="font-semibold text-white">Content Ideas for You</span>
-                    </div>
-                    <button onClick={() => setShowIdeas(false)} className="text-white/60 hover:text-white">×</button>
-                  </div>
-                  <div className="space-y-2">
-                    {[
-                      "🎬 \"5 Tips for [Your Niche]\" - Reel format, educational hook",
-                      "📸 Before/After transformation carousel",
-                      "🎤 Day in the life behind-the-scenes",
-                      "💡 Common mistakes in [Your Niche] thread",
-                      "🔥 React to trending topic in your industry",
-                    ].map((idea, i) => (
-                      <div key={i} className="p-2 rounded-lg bg-white/5 text-sm text-white/80">
-                        {idea}
-                      </div>
-                    ))}
-                  </div>
-                  <Button
-                    size="sm"
-                    className="w-full mt-3 bg-blue-500 hover:bg-blue-600"
-                    onClick={() => setShowIdeas(false)}
-                  >
-                    Use These Ideas
-                  </Button>
-                </motion.div>
-              )}
             </motion.div>
+
+            {/* Removed - Button moved to header */}
+            <div className="max-w-xl mx-auto w-full pb-32">
+
+              {/* AI Recommendation Modal - Centered */}
+              {showTomorrowTip && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto"
+                  >
+                    {/* Modal Header */}
+                    <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between rounded-t-2xl">
+                      <div className="flex items-center gap-2">
+                        <div className="h-10 w-10 rounded-xl bg-green-100 flex items-center justify-center">
+                          <Sparkles className="h-5 w-5 text-green-600" />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-gray-900">AI Recommendation</h3>
+                          <span className="text-xs text-gray-500">Powered by Social Leaf AI</span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setShowTomorrowTip(false)}
+                        className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                      >
+                        <X className="h-5 w-5 text-gray-500" />
+                      </button>
+                    </div>
+
+                    {/* Modal Content */}
+                    <div className="p-6">
+                      {loadingTip ? (
+                        <div className="flex flex-col items-center justify-center py-12 space-y-3">
+                          <Loader2 className="h-8 w-8 animate-spin text-green-600" />
+                          <span className="text-gray-600 font-medium">Analyzing your metrics...</span>
+                          <span className="text-sm text-gray-400">Generating personalized recommendations</span>
+                        </div>
+                      ) : (
+                        <div className="prose prose-gray max-w-none">
+                          <div className="text-gray-800 leading-relaxed">
+                            <ReactMarkdown
+                              components={{
+                                strong: ({ node, ...props }) => <strong className="text-gray-900 font-semibold" {...props} />,
+                                p: ({ node, ...props }) => <p className="text-gray-700 mb-3" {...props} />,
+                                h1: ({ node, ...props }) => <h1 className="text-gray-900 font-bold text-xl mb-3" {...props} />,
+                                h2: ({ node, ...props }) => <h2 className="text-gray-900 font-bold text-lg mb-2" {...props} />,
+                                h3: ({ node, ...props }) => <h3 className="text-gray-900 font-semibold text-base mb-2" {...props} />,
+                              }}
+                            >
+                              {tomorrowRecommendation || ''}
+                            </ReactMarkdown>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Modal Footer */}
+                    {!loadingTip && tomorrowRecommendation && (
+                      <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4 flex gap-3 rounded-b-2xl">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="flex-1"
+                          onClick={() => setShowTomorrowTip(false)}
+                        >
+                          Close
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                          onClick={() => {
+                            window.open('https://calendar.google.com/', '_blank');
+                          }}
+                        >
+                          <Calendar className="h-4 w-4 mr-2" />
+                          Schedule Post
+                        </Button>
+                      </div>
+                    )}
+                  </motion.div>
+                </div>
+              )}
+            </div>
+
 
             {/* Recent Posts */}
             <motion.div
@@ -1244,6 +1252,18 @@ Generated by Social Leaf AI (94% confidence)`);
                             <span className="flex items-center gap-1">
                               <Share2 className="h-3 w-3" /> {post.shares.toLocaleString()}
                             </span>
+                            {/* Direct Link Button */}
+                            {post.url && (
+                              <a
+                                href={post.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="ml-auto text-xs bg-white/10 hover:bg-white/20 text-white px-2 py-1 rounded transition-colors flex items-center gap-1"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                Watch <ArrowRight className="h-3 w-3" />
+                              </a>
+                            )}
                           </div>
                         </div>
                       </div>
