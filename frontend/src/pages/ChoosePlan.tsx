@@ -119,7 +119,7 @@ const ChoosePlan = () => {
 
     try {
       if (planId === 'starter') {
-        // Existing logic for starter plan
+        // Save starter plan to backend
         const response = await fetch(`${API_URL}/api/users/me/plan`, {
           method: 'PUT',
           headers: {
@@ -133,11 +133,15 @@ const ChoosePlan = () => {
           throw new Error('Failed to save plan');
         }
 
+        // Refresh profile to get updated plan
         await refreshProfile();
-        setLoaderDestination('/dashboard');
-        setShowLoader(true);
+
+        // Stop loading and show connect prompt for starter plan
+        setIsLoading(false);
+        setShowConnectPrompt(true);
+
       } else {
-        // Stripe Checkout for paid plans
+        // Stripe Checkout for paid plans (Professional/Business)
         const response = await fetch(`${API_URL}/api/payment/create-checkout-session`, {
           method: 'POST',
           headers: {
@@ -154,7 +158,8 @@ const ChoosePlan = () => {
 
         const data = await response.json();
         if (data.url) {
-          window.location.href = data.url; // Redirect to Stripe
+          // Redirect to Stripe Checkout for payment
+          window.location.href = data.url;
         } else {
           throw new Error('No checkout URL received');
         }
@@ -170,19 +175,8 @@ const ChoosePlan = () => {
   const handleConnectPromptResult = (connect: boolean) => {
     setShowConnectPrompt(false);
 
-    // Determine destination
-    let dest = '/dashboard';
-    if (connect) {
-      dest = '/connect-accounts';
-    } else if (selectedPlan !== 'starter') {
-      // If paid plan and they skip, they still need to pay?
-      // "just before dashboard" implies after everything else.
-      // But paying comes before dashboard.
-      // If payment is required, we should probably send them to payment FIRST.
-      // But the request said "after selection of plan".
-      // Let's stick to the plan: if paid -> payment.
-      dest = '/payment';
-    }
+    // Determine destination (only for starter plan)
+    const dest = connect ? '/connect-accounts' : '/dashboard';
 
     setLoaderDestination(dest);
     setShowLoader(true);
