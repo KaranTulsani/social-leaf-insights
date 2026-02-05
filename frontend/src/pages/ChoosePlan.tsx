@@ -86,33 +86,51 @@ const ChoosePlan = () => {
     setIsLoading(true);
 
     try {
-      // Save plan to backend
-      const response = await fetch(`${API_URL}/api/users/me/plan`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${session?.access_token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ plan: planId }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to save plan');
-      }
-
-      // Refresh profile to get updated plan
-      await refreshProfile();
-
-      // Show the leaf loader animation
       if (planId === 'starter') {
+        // Existing logic for starter plan
+        const response = await fetch(`${API_URL}/api/users/me/plan`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${session?.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ plan: planId }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to save plan');
+        }
+
+        await refreshProfile();
         setLoaderDestination('/dashboard');
+        setShowLoader(true);
       } else {
-        setLoaderDestination('/payment');
+        // Stripe Checkout for paid plans
+        const response = await fetch(`${API_URL}/api/payment/create-checkout-session`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session?.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ plan_id: planId }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.detail || 'Failed to initiate checkout');
+        }
+
+        const data = await response.json();
+        if (data.url) {
+          window.location.href = data.url; // Redirect to Stripe
+        } else {
+          throw new Error('No checkout URL received');
+        }
       }
-      setShowLoader(true);
 
     } catch (error) {
-      toast.error('Failed to select plan. Please try again.');
+      console.error(error);
+      toast.error(error instanceof Error ? error.message : 'Failed to process request. Please try again.');
       setIsLoading(false);
     }
   };

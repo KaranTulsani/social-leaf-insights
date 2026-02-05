@@ -74,7 +74,8 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
     profile &&
     !profile.plan &&
     location.pathname !== '/choose-plan' &&
-    location.pathname !== '/payment' &&
+    location.pathname !== '/choose-plan' &&
+    !location.pathname.startsWith('/payment') &&
     profile.role !== 'admin'
   ) {
     return <Navigate to="/choose-plan" replace />;
