@@ -12,6 +12,13 @@ export interface UserProfile {
   plan_status: 'active' | 'trial' | 'expired' | 'cancelled' | null;
   trial_ends_at: string | null;
   role: 'user' | 'developer' | 'admin';
+  user_type?: string | null;
+  primary_platforms?: string[] | null;
+  content_formats?: string[] | null;
+  primary_goals?: string[] | null;
+  posting_frequency?: string | null;
+  experience_level?: string | null;
+  onboarding_completed?: boolean;
 }
 
 interface AuthContextType {
