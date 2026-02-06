@@ -9,14 +9,19 @@ import json
 import re
 import httpx
 from typing import List, Tuple, Optional
-from dotenv import load_dotenv
 
-load_dotenv()
+# Use Settings class to properly load environment variables
+from app.core.config import get_settings
 
-# Get API keys
+settings = get_settings()
+
+# Get API keys from settings (works with Render env vars)
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY_SECONDARY") or os.getenv("GEMINI_API_KEY")  # Use secondary key, fallback to primary
-HUGGINGFACE_API_KEY = os.getenv("HUGGINGFACE_API_KEY")
+GEMINI_API_KEY = settings.gemini_api_key_secondary or settings.gemini_api_key
+HUGGINGFACE_API_KEY = settings.huggingface_api_key
+
+# Log which keys are available (helps debug on Render)
+print(f"🎬 Hook Detector initialized - Gemini: {'✅' if GEMINI_API_KEY else '❌'}, HF: {'✅' if HUGGINGFACE_API_KEY else '❌'}, OpenRouter: {'✅' if OPENROUTER_API_KEY else '❌'}")
 
 # CONFIRMED WORKING free VLM models on OpenRouter (NO :free suffix!)
 OPENROUTER_VLM_MODELS = [
@@ -272,12 +277,6 @@ async def analyze_hook(
     # Try Gemini first (you have a working API key)
     if GEMINI_API_KEY:
         result = await analyze_hook_with_gemini(limited_frames)
-        if result:
-            return result
-            
-    # Try Hugging Face (Qwen) next - user requested
-    if HUGGINGFACE_API_KEY:
-        result = await analyze_hook_with_huggingface(limited_frames)
         if result:
             return result
             
