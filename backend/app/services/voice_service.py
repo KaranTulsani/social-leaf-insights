@@ -138,34 +138,15 @@ class VoiceService:
 
     async def generate_audio(self, text: str, voice_id: str = "21m00Tcm4TlvDq8ikWAM") -> bytes:
         """
-        Generate audio from text using ElevenLabs API with Hugging Face fallback.
+        Generate audio from text using ElevenLabs API.
         Default voice: Rachel (21m00Tcm4TlvDq8ikWAM)
         """
         print(f"DEBUG: Generating audio. ElevenLabs key present: {bool(self.elevenlabs_key)}")
         
-        # Try ElevenLabs first
-        if self.elevenlabs_key:
-            try:
-                audio = await self._generate_with_elevenlabs(text, voice_id)
-                if audio:
-                    return audio
-            except Exception as e:
-                print(f"WARNING: ElevenLabs failed: {e}")
-                # Fall through to HF fallback
-        
-        # Fallback to Hugging Face TTS
-        hf_key = settings.huggingface_api_key
-        if hf_key:
-            print("DEBUG: Falling back to Hugging Face TTS...")
-            try:
-                return await self._generate_with_huggingface(text, hf_key)
-            except Exception as e:
-                print(f"ERROR: Hugging Face TTS also failed: {e}")
-        
-        raise Exception("No TTS service available. Please configure ElevenLabs or Hugging Face API key.")
-    
-    async def _generate_with_elevenlabs(self, text: str, voice_id: str) -> bytes:
-        """Generate audio using ElevenLabs API."""
+        if not self.elevenlabs_key:
+            print("ERROR: ElevenLabs API Key not configured")
+            raise Exception("ElevenLabs API Key not configured")
+            
         url = f"{self.elevenlabs_url}/text-to-speech/{voice_id}"
         
         headers = {
@@ -176,7 +157,7 @@ class VoiceService:
         
         data = {
             "text": text,
-            "model_id": "eleven_multilingual_v2",
+            "model_id": "eleven_monolingual_v1",  # Using v1 model for better free tier compatibility
             "voice_settings": {
                 "stability": 0.5,
                 "similarity_boost": 0.75
@@ -190,40 +171,10 @@ class VoiceService:
             if response.status_code != 200:
                 error_msg = response.text
                 print(f"ERROR: ElevenLabs API Error ({response.status_code}): {error_msg}")
-                
-                if "detected_unusual_activity" in error_msg:
-                    raise Exception("ElevenLabs Free Tier blocked. Trying fallback...")
-                
                 raise Exception(f"ElevenLabs API Error: {error_msg}")
                 
             print("DEBUG: Audio generated successfully via ElevenLabs")
             return response.content
-    
-    async def _generate_with_huggingface(self, text: str, api_key: str) -> bytes:
-        """Generate audio using Hugging Face Inference API (free tier)."""
-        # Using Facebook MMS TTS - fast and free
-        api_url = "https://api-inference.huggingface.co/models/facebook/mms-tts-eng"
-        
-        headers = {
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json"
-        }
-        
-        async with httpx.AsyncClient() as client:
-            print(f"DEBUG: Sending request to Hugging Face TTS...")
-            response = await client.post(
-                api_url,
-                headers=headers,
-                json={"inputs": text},
-                timeout=60.0
-            )
-            
-            if response.status_code == 200:
-                print("DEBUG: Audio generated successfully via Hugging Face")
-                return response.content
-            else:
-                print(f"ERROR: Hugging Face TTS Error ({response.status_code}): {response.text[:200]}")
-                raise Exception(f"Hugging Face TTS failed: {response.text[:100]}")
 
 # Singleton instance
 voice_service = VoiceService()
