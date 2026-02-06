@@ -181,25 +181,26 @@ async def analyze_hook_with_gemini(frames: List[Tuple[float, str]]) -> Optional[
 
 
 async def analyze_hook_with_huggingface(frames: List[Tuple[float, str]]) -> Optional[dict]:
-    """Analyze frames using Hugging Face Inference API (Qwen2-VL)."""
+    """Analyze frames using Hugging Face Router API (Qwen2-VL)."""
     if not HUGGINGFACE_API_KEY:
         print("DEBUG: HUGGINGFACE_API_KEY not configured")
         return None
     
     print("DEBUG: Analyzing frames with Hugging Face (Qwen2-VL)...")
     
-    # Use standard OpenAI-compatible endpoint for HF Inference
-    api_url = "https://api-inference.huggingface.co/models/Qwen/Qwen2-VL-7B-Instruct/v1/chat/completions"
+    # NEW URL: router.huggingface.co (api-inference is deprecated as of 2026)
+    api_url = "https://router.huggingface.co/novita/v3/openai/chat/completions"
     
     headers = {
         "Authorization": f"Bearer {HUGGINGFACE_API_KEY}",
         "Content-Type": "application/json"
     }
     
-    # Build content with text and images
+    # Build content with text and images (limit to 3 frames)
+    limited_frames = frames[:3]
     content = [{"type": "text", "text": HOOK_ANALYSIS_PROMPT}]
     
-    for _, b64_image in frames:
+    for _, b64_image in limited_frames:
         content.append({
             "type": "image_url",
             "image_url": {"url": f"data:image/jpeg;base64,{b64_image}"}
@@ -208,8 +209,8 @@ async def analyze_hook_with_huggingface(frames: List[Tuple[float, str]]) -> Opti
     payload = {
         "model": "Qwen/Qwen2-VL-7B-Instruct",
         "messages": [{"role": "user", "content": content}],
-        "max_tokens": 500,
-        "temperature": 0.5
+        "max_tokens": 400,
+        "temperature": 0.2
     }
     
     try:
@@ -266,7 +267,7 @@ async def analyze_hook(
 ) -> Optional[dict]:
     """
     Analyze frames to find the best hook moment.
-    Priority: Gemini Flash -> OpenRouter (Qwen-VL) -> Text-only fallback
+    Priority: HuggingFace (Qwen) -> Gemini Flash -> OpenRouter -> Text fallback
     """
     if not frames:
         raise ValueError("No frames provided for analysis")
@@ -274,15 +275,15 @@ async def analyze_hook(
     # Limit to MAX_FRAMES (3) for optimal performance
     limited_frames = frames[:MAX_FRAMES]
     
-    # Try Gemini first (you have a working API key)
-    if GEMINI_API_KEY:
-        result = await analyze_hook_with_gemini(limited_frames)
-        if result:
-            return result
-            
-    # Try Hugging Face (Qwen) next - user requested
+    # Try Hugging Face FIRST (Gemini key was leaked/blocked)
     if HUGGINGFACE_API_KEY:
         result = await analyze_hook_with_huggingface(limited_frames)
+        if result:
+            return result
+    
+    # Try Gemini as backup
+    if GEMINI_API_KEY:
+        result = await analyze_hook_with_gemini(limited_frames)
         if result:
             return result
     
