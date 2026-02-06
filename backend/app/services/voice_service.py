@@ -169,8 +169,13 @@ class VoiceService:
             response = await client.post(url, json=data, headers=headers, timeout=30.0)
             
             if response.status_code != 200:
-                print(f"ERROR: ElevenLabs API Error ({response.status_code}): {response.text}")
-                raise Exception(f"ElevenLabs API Error: {response.text}")
+                error_msg = response.text
+                print(f"ERROR: ElevenLabs API Error ({response.status_code}): {error_msg}")
+                
+                if "detected_unusual_activity" in error_msg:
+                    raise Exception("ElevenLabs Free Tier limit reached/flagged. Please upgrade to a paid ElevenLabs plan.")
+                
+                raise Exception(f"ElevenLabs API Error: {error_msg}")
                 
             print("DEBUG: Audio generated successfully")
             return response.content
