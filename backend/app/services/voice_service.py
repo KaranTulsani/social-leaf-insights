@@ -42,9 +42,10 @@ class VoiceService:
         # Models to try in order of preference (cheaper/faster first)
         # Models to try in order of preference (cheaper/faster first)
         models_to_try = [
-            'gemini-1.5-flash',
-            'gemini-1.5-pro',
-            'gemini-pro'
+            'models/gemini-1.5-flash',
+            'models/gemini-1.5-pro',
+            'models/gemini-pro',
+            'models/gemini-flash-latest'
         ]
         
         import asyncio

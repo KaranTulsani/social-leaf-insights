@@ -16,6 +16,7 @@ load_dotenv()
 # Get API keys
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY_SECONDARY") or os.getenv("GEMINI_API_KEY")  # Use secondary key, fallback to primary
+HUGGINGFACE_API_KEY = os.getenv("HUGGINGFACE_API_KEY")
 
 # CONFIRMED WORKING free VLM models on OpenRouter (NO :free suffix!)
 OPENROUTER_VLM_MODELS = [
@@ -174,6 +175,71 @@ async def analyze_hook_with_gemini(frames: List[Tuple[float, str]]) -> Optional[
     return None
 
 
+async def analyze_hook_with_huggingface(frames: List[Tuple[float, str]]) -> Optional[dict]:
+    """Analyze frames using Hugging Face Inference API (Qwen2-VL)."""
+    if not HUGGINGFACE_API_KEY:
+        print("DEBUG: HUGGINGFACE_API_KEY not configured")
+        return None
+    
+    print("DEBUG: Analyzing frames with Hugging Face (Qwen2-VL)...")
+    
+    # Use standard OpenAI-compatible endpoint for HF Inference
+    api_url = "https://api-inference.huggingface.co/models/Qwen/Qwen2-VL-7B-Instruct/v1/chat/completions"
+    
+    headers = {
+        "Authorization": f"Bearer {HUGGINGFACE_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    
+    # Build content with text and images
+    content = [{"type": "text", "text": HOOK_ANALYSIS_PROMPT}]
+    
+    for _, b64_image in frames:
+        content.append({
+            "type": "image_url",
+            "image_url": {"url": f"data:image/jpeg;base64,{b64_image}"}
+        })
+    
+    payload = {
+        "model": "Qwen/Qwen2-VL-7B-Instruct",
+        "messages": [{"role": "user", "content": content}],
+        "max_tokens": 500,
+        "temperature": 0.5
+    }
+    
+    try:
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            response = await client.post(api_url, headers=headers, json=payload)
+            
+            print(f"DEBUG: Hugging Face status: {response.status_code}")
+            
+            if response.status_code == 200:
+                data = response.json()
+                result_text = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+                print(f"DEBUG: Hugging Face response: {result_text[:100]}...")
+                
+                # Extract JSON
+                json_match = re.search(r'\{[\s\S]*\}', result_text)
+                if json_match:
+                    result = json.loads(json_match.group())
+                    result.setdefault("frame_index", 0)
+                    result.setdefault("timestamp_sec", 0)
+                    result.setdefault("hook_score", 50)
+                    result.setdefault("reason", "Analysis completed via Qwen")
+                    result.setdefault("visual_elements", [])
+                    
+                    frame_idx = min(result.get("frame_index", 0) or 0, len(frames) - 1)
+                    result["frame_image"] = frames[frame_idx][1]
+                    return result
+            else:
+                print(f"DEBUG: Hugging Face error: {response.text[:150]}")
+                
+    except Exception as e:
+        print(f"DEBUG: Hugging Face exception: {str(e)[:100]}")
+    
+    return None
+
+
 def generate_text_only_fallback(frames: List[Tuple[float, str]]) -> dict:
     """Last resort: Return a sensible default without vision analysis."""
     print("DEBUG: Using text-only fallback (no vision API available)")
@@ -206,6 +272,18 @@ async def analyze_hook(
     # Try Gemini first (you have a working API key)
     if GEMINI_API_KEY:
         result = await analyze_hook_with_gemini(limited_frames)
+        if result:
+            return result
+            
+    # Try Hugging Face (Qwen) next - user requested
+    if HUGGINGFACE_API_KEY:
+        result = await analyze_hook_with_huggingface(limited_frames)
+        if result:
+            return result
+            
+    # Try Hugging Face (Qwen) next - user requested
+    if HUGGINGFACE_API_KEY:
+        result = await analyze_hook_with_huggingface(limited_frames)
         if result:
             return result
     

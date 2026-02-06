@@ -4,7 +4,8 @@ __pycache__/
 *$py.class
 venv/
 env/
-# .env  # Commented out to include .env files in private repo
+.env
+backend/.env
 # .venv
 
 # Node/JS

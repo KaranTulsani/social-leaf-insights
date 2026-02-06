@@ -24,6 +24,7 @@ async def lifespan(app: FastAPI):
     check_key("Gemini Primary", settings.gemini_api_key)
     check_key("Gemini Secondary", settings.gemini_api_key_secondary)
     check_key("ElevenLabs", settings.elevenlabs_api_key)
+    check_key("Hugging Face", settings.huggingface_api_key)
     check_key("Supabase URL", settings.supabase_url)
     
     yield
