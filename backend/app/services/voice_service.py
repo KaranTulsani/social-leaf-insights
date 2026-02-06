@@ -100,8 +100,8 @@ class VoiceService:
                 for attempt in range(3):
                     try:
                         print(f"DEBUG: Calling Gemini API (Attempt {attempt+1})...")
-                        loop = asyncio.get_event_loop()
-                        response = await loop.run_in_executor(None, partial(model.generate_content, prompt))
+                        print(f"DEBUG: Calling Gemini API (Attempt {attempt+1})...")
+                        response = await model.generate_content_async(prompt)
                         print(f"DEBUG: Gemini response: {response.text[:100]}...")
                         
                         text = response.text.strip()

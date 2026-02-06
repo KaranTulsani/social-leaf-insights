@@ -14,6 +14,18 @@ async def lifespan(app: FastAPI):
     """Application lifespan events."""
     # Startup
     print("🚀 Social Leaf Backend starting...")
+    
+    # Diagnostics - Check Keys (masked)
+    def check_key(name, val):
+        status = "✅ Loaded" if val else "❌ Missing"
+        masked = f"{val[:4]}...{val[-4:]}" if val and len(val) > 8 else "N/A"
+        print(f"🔑 {name}: {status}")
+
+    check_key("Gemini Primary", settings.gemini_api_key)
+    check_key("Gemini Secondary", settings.gemini_api_key_secondary)
+    check_key("ElevenLabs", settings.elevenlabs_api_key)
+    check_key("Supabase URL", settings.supabase_url)
+    
     yield
     # Shutdown
     print("👋 Social Leaf Backend shutting down...")

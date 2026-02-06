@@ -52,7 +52,9 @@ async def generate_post(
         for img in images:
             # optimize_image expects UploadFile and saves it
             print(f"Optimizing image: {img.filename}")
-            path = optimize_image(img)
+            # Run blocking CPU-bound task in threadpool
+            from fastapi.concurrency import run_in_threadpool
+            path = await run_in_threadpool(optimize_image, img)
             optimized_paths.append(path)
 
         # 4. Return Payload

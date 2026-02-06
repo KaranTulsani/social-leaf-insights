@@ -47,7 +47,7 @@ Respond ONLY with JSON:
 """
 
 
-def analyze_hook_with_openrouter(frames: List[Tuple[float, str]]) -> Optional[dict]:
+async def analyze_hook_with_openrouter(frames: List[Tuple[float, str]]) -> Optional[dict]:
     """Analyze frames using OpenRouter API with confirmed working models."""
     if not OPENROUTER_API_KEY:
         print("DEBUG: OPENROUTER_API_KEY not configured")
@@ -85,8 +85,8 @@ def analyze_hook_with_openrouter(frames: List[Tuple[float, str]]) -> Optional[di
         }
         
         try:
-            with httpx.Client(timeout=60.0) as client:
-                response = client.post(api_url, headers=headers, json=payload)
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                response = await client.post(api_url, headers=headers, json=payload)
                 
                 print(f"DEBUG: OpenRouter {model} status: {response.status_code}")
                 
@@ -119,7 +119,7 @@ def analyze_hook_with_openrouter(frames: List[Tuple[float, str]]) -> Optional[di
     return None
 
 
-def analyze_hook_with_gemini(frames: List[Tuple[float, str]]) -> Optional[dict]:
+async def analyze_hook_with_gemini(frames: List[Tuple[float, str]]) -> Optional[dict]:
     """Fallback to Gemini 1.5 Flash (stable, not 2.0)."""
     if not GEMINI_API_KEY:
         print("DEBUG: GEMINI_API_KEY not configured")
@@ -143,7 +143,7 @@ def analyze_hook_with_gemini(frames: List[Tuple[float, str]]) -> Optional[dict]:
         print("DEBUG: Calling models/gemini-flash-latest...")
         model = genai.GenerativeModel("models/gemini-flash-latest")
         
-        response = model.generate_content(
+        response = await model.generate_content_async(
             content_parts,
             generation_config=genai.types.GenerationConfig(
                 temperature=0.2,
@@ -189,7 +189,7 @@ def generate_text_only_fallback(frames: List[Tuple[float, str]]) -> dict:
     }
 
 
-def analyze_hook(
+async def analyze_hook(
     frames: List[Tuple[float, str]],
     model_name: str = "qwen/qwen-2-vl-7b-instruct"
 ) -> Optional[dict]:
@@ -205,13 +205,13 @@ def analyze_hook(
     
     # Try Gemini first (you have a working API key)
     if GEMINI_API_KEY:
-        result = analyze_hook_with_gemini(limited_frames)
+        result = await analyze_hook_with_gemini(limited_frames)
         if result:
             return result
     
     # Fallback to OpenRouter if available
     if OPENROUTER_API_KEY:
-        result = analyze_hook_with_openrouter(limited_frames)
+        result = await analyze_hook_with_openrouter(limited_frames)
         if result:
             return result
     

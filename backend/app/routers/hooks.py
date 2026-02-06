@@ -72,8 +72,11 @@ async def analyze_video_hook(
         raise HTTPException(status_code=500, detail=f"Error saving video: {str(e)}")
     
     try:
-        # Extract frames
-        frames = extract_frames(
+        from fastapi.concurrency import run_in_threadpool
+        
+        # Extract frames in threadpool (CPU bound)
+        frames = await run_in_threadpool(
+            extract_frames,
             temp_path,
             interval_seconds=interval,
             max_frames=max_frames
@@ -86,7 +89,7 @@ async def analyze_video_hook(
             )
         
         # Analyze with Gemini (smart batching - 1 API call)
-        analysis = analyze_hook(frames)
+        analysis = await analyze_hook(frames)
         
         if not analysis:
             raise HTTPException(

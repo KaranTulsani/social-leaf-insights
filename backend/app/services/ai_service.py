@@ -128,7 +128,7 @@ class AIService:
                     if not images:
                         raise Exception("No images provided to AI Service")
                         
-                    response = model.generate_content([prompt, *images])
+                    response = await model.generate_content_async([prompt, *images])
                     if response and response.text:
                         print(f"DEBUG: Successfully got response from {model_name}")
                         break 
@@ -325,8 +325,8 @@ class AIService:
         
         if self.openai_key:
             try:
-                client = openai.OpenAI(api_key=self.openai_key)
-                response = client.chat.completions.create(
+                client = openai.AsyncOpenAI(api_key=self.openai_key)
+                response = await client.chat.completions.create(
                     model="gpt-3.5-turbo",
                     messages=[
                         {
@@ -355,7 +355,7 @@ class AIService:
                 # Temporarily configure with secondary key
                 genai.configure(api_key=gemini_key_for_chat)
                 model = genai.GenerativeModel('models/gemini-flash-latest')
-                response = model.generate_content(f"Context:\n{context_str}\n\nQuestion: {question}")
+                response = await model.generate_content_async(f"Context:\n{context_str}\n\nQuestion: {question}")
                 # Restore primary key configuration
                 if self.gemini_key:
                     genai.configure(api_key=self.gemini_key)
@@ -517,7 +517,7 @@ class AIService:
         if self.gemini_key:
             try:
                 model = genai.GenerativeModel('gemini-1.5-flash')
-                response = model.generate_content(prompt)
+                response = await model.generate_content_async(prompt)
                 response_text = response.text
             except Exception as e:
                 print(f"Gemini report generation failed: {e}")
@@ -525,8 +525,8 @@ class AIService:
         # Fallback to OpenAI
         if not response_text and self.openai_key:
             try:
-                client = openai.OpenAI(api_key=self.openai_key)
-                response = client.chat.completions.create(
+                client = openai.AsyncOpenAI(api_key=self.openai_key)
+                response = await client.chat.completions.create(
                     model="gpt-4o",
                     messages=[{"role": "user", "content": prompt}],
                     max_tokens=1000,
