@@ -160,7 +160,18 @@ async def analyze_hook_with_gemini(frames: List[Tuple[float, str]]) -> Optional[
             )
         )
         
-        response_text = response.text.strip()
+        response_text = ""
+        
+        # Check if response has valid parts before accessing .text
+        if response.candidates and len(response.candidates) > 0:
+            candidate = response.candidates[0]
+            if candidate.content and candidate.content.parts:
+                response_text = response.text.strip()
+        
+        if not response_text:
+            print("DEBUG: Gemini returned empty/blocked response")
+            return None
+        
         print(f"DEBUG: Gemini response: {response_text[:100]}...")
         
         json_match = re.search(r'\{[\s\S]*\}', response_text)
@@ -191,26 +202,30 @@ async def analyze_hook_with_huggingface(frames: List[Tuple[float, str]]) -> Opti
     
     print("DEBUG: Analyzing frames with Hugging Face (LLaVA)...")
     
-    # Use LLaVA model - available on HF Inference free tier
-    # UPDATED: Use router.huggingface.co as api-inference.huggingface.co is deprecated
-    api_url = "https://router.huggingface.co/hf-inference/models/llava-hf/llava-1.5-7b-hf"
+    # Use Qwen2-VL model via HF Inference Providers (OpenAI-compatible endpoint)
+    # https://router.huggingface.co/v1 is the OpenAI-compatible base URL
+    api_url = "https://router.huggingface.co/hf-inference/v1/chat/completions"
     
     headers = {
         "Authorization": f"Bearer {HUGGINGFACE_API_KEY}",
         "Content-Type": "application/json"
     }
     
-    # For LLaVA, send single image with prompt (simpler API)
-    # Use the first/best frame
+    # Use OpenAI-compatible vision format
     best_frame = frames[0] if frames else None
     if not best_frame:
         return None
     
+    # Build OpenAI-compatible message content
+    content = [
+        {"type": "text", "text": "Which moment in this video frame would stop viewers from scrolling? Rate hook strength 1-100 and explain why. Respond with JSON: {\"hook_score\": NUMBER, \"reason\": \"...\", \"visual_elements\": []}."},
+        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{best_frame[1]}"}}
+    ]
+    
     payload = {
-        "inputs": {
-            "image": best_frame[1],  # base64 image
-            "text": "Which moment in this video frame would stop viewers from scrolling? Rate hook strength 1-100 and explain why."
-        }
+        "model": "Qwen/Qwen2-VL-7B-Instruct",
+        "messages": [{"role": "user", "content": content}],
+        "max_tokens": 300
     }
     
     try:
@@ -223,9 +238,11 @@ async def analyze_hook_with_huggingface(frames: List[Tuple[float, str]]) -> Opti
                 data = response.json()
                 print(f"DEBUG: Hugging Face response: {str(data)[:150]}...")
                 
-                # LLaVA returns generated text directly or in a list
+                # OpenAI chat completions format
                 result_text = ""
-                if isinstance(data, list) and len(data) > 0:
+                if "choices" in data and len(data["choices"]) > 0:
+                    result_text = data["choices"][0].get("message", {}).get("content", "")
+                elif isinstance(data, list) and len(data) > 0:
                     result_text = data[0].get("generated_text", "")
                 elif isinstance(data, dict):
                     result_text = data.get("generated_text", str(data))
