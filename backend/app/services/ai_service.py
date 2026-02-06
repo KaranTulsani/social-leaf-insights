@@ -6,6 +6,7 @@ import openai
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 import json
+import re
 import google.generativeai as genai
 
 from PIL import Image
@@ -146,15 +147,34 @@ class AIService:
                 text = response.text.strip()
                 print(f"DEBUG: Raw AI Response: {text[:200]}...")
                 
-                # Robust JSON extraction: Find first '{' and last '}'
-                start_idx = text.find('{')
-                end_idx = text.rfind('}')
+                # Step 1: Remove markdown code blocks if present
+                if text.startswith("```"):
+                    # Remove opening ```json or ``` 
+                    text = re.sub(r'^```(?:json)?\s*\n?', '', text)
+                    # Remove closing ```
+                    text = re.sub(r'\n?```\s*$', '', text)
+                    text = text.strip()
                 
-                if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
-                    json_str = text[start_idx : end_idx + 1]
-                    parsed = json.loads(json_str)
-                    print(f"DEBUG: Successfully parsed JSON with caption: {parsed.get('caption', '')[:50]}...")
-                    return parsed
+                # Step 2: Find JSON object using regex (handles nested braces)
+                json_match = re.search(r'\{[\s\S]*\}', text)
+                
+                if json_match:
+                    json_str = json_match.group()
+                    try:
+                        parsed = json.loads(json_str)
+                        print(f"DEBUG: Successfully parsed JSON with caption: {parsed.get('caption', '')[:50]}...")
+                        return parsed
+                    except json.JSONDecodeError as je:
+                        print(f"DEBUG: JSON decode error: {je}")
+                        # Try to extract just the caption manually
+                        caption_match = re.search(r'"caption"\s*:\s*"([^"]*(?:\\"[^"]*)*)"', json_str)
+                        if caption_match:
+                            return {
+                                "caption": caption_match.group(1).replace('\\"', '"'),
+                                "hashtags": ["#content", "#socialmedia", "#growth"],
+                                "cta": "Comment below!",
+                                "style": "extracted"
+                            }
                 else:
                     print(f"DEBUG: No JSON structure found in response")
             except Exception as parse_err:
