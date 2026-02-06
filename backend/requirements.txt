@@ -33,3 +33,6 @@ Pillow>=10.0.0
 google-generativeai>=0.3.0  # Gemini (fallback for vision)
 openai>=1.0.0
 stripe>=6.0.0
+
+# Text-to-Speech
+gTTS>=2.4.0  # Free Google TTS fallback

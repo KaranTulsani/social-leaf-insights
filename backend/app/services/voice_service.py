@@ -138,15 +138,29 @@ class VoiceService:
 
     async def generate_audio(self, text: str, voice_id: str = "21m00Tcm4TlvDq8ikWAM") -> bytes:
         """
-        Generate audio from text using ElevenLabs API.
-        Default voice: Rachel (21m00Tcm4TlvDq8ikWAM)
+        Generate audio from text.
+        Priority: ElevenLabs -> gTTS (free Google TTS fallback)
         """
         print(f"DEBUG: Generating audio. ElevenLabs key present: {bool(self.elevenlabs_key)}")
         
-        if not self.elevenlabs_key:
-            print("ERROR: ElevenLabs API Key not configured")
-            raise Exception("ElevenLabs API Key not configured")
-            
+        # Try ElevenLabs first
+        if self.elevenlabs_key:
+            try:
+                audio = await self._generate_with_elevenlabs(text, voice_id)
+                if audio:
+                    return audio
+            except Exception as e:
+                print(f"WARNING: ElevenLabs failed: {e}. Trying gTTS fallback...")
+        
+        # Fallback to gTTS (free, no API key needed)
+        try:
+            return await self._generate_with_gtts(text)
+        except Exception as e:
+            print(f"ERROR: gTTS fallback also failed: {e}")
+            raise Exception(f"All TTS services failed. Last error: {e}")
+    
+    async def _generate_with_elevenlabs(self, text: str, voice_id: str) -> bytes:
+        """Generate audio using ElevenLabs API."""
         url = f"{self.elevenlabs_url}/text-to-speech/{voice_id}"
         
         headers = {
@@ -157,7 +171,7 @@ class VoiceService:
         
         data = {
             "text": text,
-            "model_id": "eleven_monolingual_v1",  # Using v1 model for better free tier compatibility
+            "model_id": "eleven_monolingual_v1",
             "voice_settings": {
                 "stability": 0.5,
                 "similarity_boost": 0.75
@@ -171,10 +185,29 @@ class VoiceService:
             if response.status_code != 200:
                 error_msg = response.text
                 print(f"ERROR: ElevenLabs API Error ({response.status_code}): {error_msg}")
-                raise Exception(f"ElevenLabs API Error: {error_msg}")
+                raise Exception(f"ElevenLabs error: {response.status_code}")
                 
             print("DEBUG: Audio generated successfully via ElevenLabs")
             return response.content
+    
+    async def _generate_with_gtts(self, text: str) -> bytes:
+        """Fallback: Generate audio using gTTS (Google Text-to-Speech - FREE)."""
+        import io
+        from gtts import gTTS
+        from fastapi.concurrency import run_in_threadpool
+        
+        print("DEBUG: Using gTTS fallback...")
+        
+        def generate_sync():
+            mp3_fp = io.BytesIO()
+            tts = gTTS(text=text, lang='en', slow=False)
+            tts.write_to_fp(mp3_fp)
+            mp3_fp.seek(0)
+            return mp3_fp.read()
+        
+        audio_bytes = await run_in_threadpool(generate_sync)
+        print("DEBUG: Audio generated successfully via gTTS")
+        return audio_bytes
 
 # Singleton instance
 voice_service = VoiceService()

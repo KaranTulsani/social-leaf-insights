@@ -42,12 +42,6 @@ export function ConnectAccountsModal({ open, onOpenChange }: ConnectAccountsModa
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Connect Accounts</DialogTitle>
-          <DialogDescription>
-            Connect your social media accounts to access analytics.
-          </DialogDescription>
-        </DialogHeader>
-        <DialogHeader>
           <DialogTitle className="text-center text-xl font-display">Connect your social accounts</DialogTitle>
           <DialogDescription className="text-center">
             To get started with analytics, please connect your accounts.
