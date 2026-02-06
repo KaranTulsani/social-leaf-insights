@@ -146,27 +146,17 @@ class AIService:
                 text = response.text.strip()
                 print(f"DEBUG: Raw AI Response: {text[:200]}...")
                 
-                # Remove markdown code blocks if present
-                if text.startswith("```json"):
-                    text = text[7:]  # Remove ```json
-                elif text.startswith("```"):
-                    text = text[3:]  # Remove ```
-                    
-                if text.endswith("```"):
-                    text = text[:-3]  # Remove trailing ```
-                    
-                text = text.strip()
+                # Robust JSON extraction: Find first '{' and last '}'
+                start_idx = text.find('{')
+                end_idx = text.rfind('}')
                 
-                # More robust JSON extraction
-                import re
-                json_match = re.search(r'\{.*\}', text, re.DOTALL)
-                if json_match:
-                    json_str = json_match.group(0)
+                if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+                    json_str = text[start_idx : end_idx + 1]
                     parsed = json.loads(json_str)
                     print(f"DEBUG: Successfully parsed JSON with caption: {parsed.get('caption', '')[:50]}...")
                     return parsed
                 else:
-                    print(f"DEBUG: No JSON found in response")
+                    print(f"DEBUG: No JSON structure found in response")
             except Exception as parse_err:
                 print(f"DEBUG: Parse error: {parse_err}. Returning fallback.")
             
