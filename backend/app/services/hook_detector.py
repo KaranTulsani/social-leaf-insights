@@ -59,6 +59,9 @@ async def analyze_hook_with_openrouter(frames: List[Tuple[float, str]]) -> Optio
         print("DEBUG: OPENROUTER_API_KEY not configured")
         return None
     
+    # DEBUG: Check if we are getting the right key
+    key_prefix = OPENROUTER_API_KEY[:5] + "..." if OPENROUTER_API_KEY else "None"
+    print(f"DEBUG: OPENROUTER_API_KEY loaded: {key_prefix}")
     print(f"DEBUG: Analyzing {len(frames)} frames with OpenRouter...")
     
     api_url = "https://openrouter.ai/api/v1/chat/completions"
@@ -189,7 +192,8 @@ async def analyze_hook_with_huggingface(frames: List[Tuple[float, str]]) -> Opti
     print("DEBUG: Analyzing frames with Hugging Face (LLaVA)...")
     
     # Use LLaVA model - available on HF Inference free tier
-    api_url = "https://api-inference.huggingface.co/models/llava-hf/llava-1.5-7b-hf"
+    # UPDATED: Use router.huggingface.co as api-inference.huggingface.co is deprecated
+    api_url = "https://router.huggingface.co/hf-inference/models/llava-hf/llava-1.5-7b-hf"
     
     headers = {
         "Authorization": f"Bearer {HUGGINGFACE_API_KEY}",
